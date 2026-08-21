@@ -1,0 +1,26 @@
+[
+  {
+    "bus_id": "BUS001", "operator": "GSRTC", "bus_category": "public", "bus_type": "AC Seater",
+    "departure_station": "Ahmedabad Central Bus Stand", "arrival_station": "Panaji Bus Stand",
+    "departure_time": "2026-09-09T21:00:00", "arrival_time": "2026-09-10T13:30:00",
+    "duration_minutes": 990, "price": 950.0, "currency": "INR", "direction": "outbound"
+  },
+  {
+    "bus_id": "BUS002", "operator": "VRL Travels", "bus_category": "private", "bus_type": "AC Sleeper",
+    "departure_station": "Ahmedabad Central Bus Stand", "arrival_station": "Panaji Bus Stand",
+    "departure_time": "2026-09-09T19:30:00", "arrival_time": "2026-09-10T11:00:00",
+    "duration_minutes": 930, "price": 1650.0, "currency": "INR", "direction": "outbound"
+  },
+  {
+    "bus_id": "BUS003", "operator": "GSRTC", "bus_category": "public", "bus_type": "AC Seater",
+    "departure_station": "Panaji Bus Stand", "arrival_station": "Ahmedabad Central Bus Stand",
+    "departure_time": "2026-09-14T20:00:00", "arrival_time": "2026-09-15T12:15:00",
+    "duration_minutes": 975, "price": 950.0, "currency": "INR", "direction": "return"
+  },
+  {
+    "bus_id": "BUS004", "operator": "VRL Travels", "bus_category": "private", "bus_type": "AC Sleeper",
+    "departure_station": "Panaji Bus Stand", "arrival_station": "Ahmedabad Central Bus Stand",
+    "departure_time": "2026-09-14T18:45:00", "arrival_time": "2026-09-15T10:00:00",
+    "duration_minutes": 915, "price": 1650.0, "currency": "INR", "direction": "return"
+  }
+]

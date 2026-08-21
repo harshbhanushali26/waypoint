@@ -1,0 +1,37 @@
+[
+  {
+    "hotel_id": "HTL001", "name": "Baga Beach Resort", "hotel_class": 3, "rating": 4.1, "reviews_count": 2140,
+    "price_per_night": 3200.0, "total_price": 12800.0, "currency": "INR",
+    "check_in_time": "14:00", "check_out_time": "11:00",
+    "latitude": 15.5553, "longitude": 73.7517,
+    "amenities": ["Free WiFi", "Pool", "Breakfast included"]
+  },
+  {
+    "hotel_id": "HTL002", "name": "Taj Fort Aguada", "hotel_class": 5, "rating": 4.6, "reviews_count": 5320,
+    "price_per_night": 11500.0, "total_price": 46000.0, "currency": "INR",
+    "check_in_time": "14:00", "check_out_time": "12:00",
+    "latitude": 15.4989, "longitude": 73.7725,
+    "amenities": ["Free WiFi", "Pool", "Spa", "Beachfront"]
+  },
+  {
+    "hotel_id": "HTL003", "name": "Zostel Goa", "hotel_class": 2, "rating": 4.3, "reviews_count": 1870,
+    "price_per_night": 900.0, "total_price": 3600.0, "currency": "INR",
+    "check_in_time": "12:00", "check_out_time": "10:00",
+    "latitude": 15.5936, "longitude": 73.7451,
+    "amenities": ["Free WiFi", "Common lounge"]
+  },
+  {
+    "hotel_id": "HTL004", "name": "Novotel Goa Resort", "hotel_class": 4, "rating": 4.4, "reviews_count": 3010,
+    "price_per_night": 5800.0, "total_price": 23200.0, "currency": "INR",
+    "check_in_time": "14:00", "check_out_time": "12:00",
+    "latitude": 15.3547, "longitude": 73.8390,
+    "amenities": ["Free WiFi", "Pool", "Gym", "Breakfast included"]
+  },
+  {
+    "hotel_id": "HTL005", "name": "The Leela Goa", "hotel_class": 5, "rating": 4.7, "reviews_count": 4210,
+    "price_per_night": 14200.0, "total_price": 56800.0, "currency": "INR",
+    "check_in_time": "15:00", "check_out_time": "12:00",
+    "latitude": 15.2993, "longitude": 73.9382,
+    "amenities": ["Free WiFi", "Pool", "Spa", "Private beach"]
+  }
+]

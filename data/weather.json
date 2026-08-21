@@ -1,0 +1,7 @@
+[
+  { "date": "2026-09-10", "condition": "Partly cloudy", "temp_max_c": 31.2, "temp_min_c": 25.4, "temp_avg_c": 28.1 },
+  { "date": "2026-09-11", "condition": "Light rain",     "temp_max_c": 29.0, "temp_min_c": 24.8, "temp_avg_c": 26.9 },
+  { "date": "2026-09-12", "condition": "Thunderstorm",   "temp_max_c": 28.5, "temp_min_c": 24.1, "temp_avg_c": 26.2 },
+  { "date": "2026-09-13", "condition": "Cloudy",         "temp_max_c": 30.1, "temp_min_c": 25.0, "temp_avg_c": 27.5 },
+  { "date": "2026-09-14", "condition": "Sunny",          "temp_max_c": 31.8, "temp_min_c": 25.9, "temp_avg_c": 28.9 }
+]

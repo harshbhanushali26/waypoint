@@ -1,0 +1,20 @@
+[
+  {
+    "car_id": "CAR001", "provider": "Zoomcar", "car_type": "economy",
+    "pickup_location": "Goa Dabolim Airport", "dropoff_location": "Goa Dabolim Airport",
+    "pickup_time": "2026-09-10T10:30:00", "dropoff_time": "2026-09-14T18:00:00",
+    "price_per_day": 1200.0, "total_price": 4800.0, "currency": "INR"
+  },
+  {
+    "car_id": "CAR002", "provider": "Avis", "car_type": "sedan",
+    "pickup_location": "Goa Dabolim Airport", "dropoff_location": "Goa Dabolim Airport",
+    "pickup_time": "2026-09-10T10:30:00", "dropoff_time": "2026-09-14T18:00:00",
+    "price_per_day": 2200.0, "total_price": 8800.0, "currency": "INR"
+  },
+  {
+    "car_id": "CAR003", "provider": "Revv", "car_type": "suv",
+    "pickup_location": "Goa Dabolim Airport", "dropoff_location": "Goa Dabolim Airport",
+    "pickup_time": "2026-09-10T10:30:00", "dropoff_time": "2026-09-14T18:00:00",
+    "price_per_day": 3500.0, "total_price": 14000.0, "currency": "INR"
+  }
+]

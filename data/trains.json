@@ -1,0 +1,23 @@
+[
+  {
+    "train_id": "TR001", "train_number": "22960", "train_name": "Ahmedabad Goa SF Express",
+    "train_type": "superfast", "departure_station": "ADI", "arrival_station": "MAO",
+    "departure_time": "2026-09-09T20:15:00", "arrival_time": "2026-09-10T18:40:00",
+    "duration_minutes": 1345, "distance_km": 918, "class_code": "3A",
+    "price": 1450.0, "currency": "INR", "direction": "outbound"
+  },
+  {
+    "train_id": "TR002", "train_number": "20948", "train_name": "Vande Bharat Express",
+    "train_type": "vande-bharat", "departure_station": "ADI", "arrival_station": "MAO",
+    "departure_time": "2026-09-10T05:30:00", "arrival_time": "2026-09-10T20:10:00",
+    "duration_minutes": 880, "distance_km": 918, "class_code": "3A",
+    "price": 2100.0, "currency": "INR", "direction": "outbound"
+  },
+  {
+    "train_id": "TR003", "train_number": "22959", "train_name": "Goa Ahmedabad SF Express",
+    "train_type": "superfast", "departure_station": "MAO", "arrival_station": "ADI",
+    "departure_time": "2026-09-14T21:00:00", "arrival_time": "2026-09-15T19:25:00",
+    "duration_minutes": 1345, "distance_km": 918, "class_code": "3A",
+    "price": 1450.0, "currency": "INR", "direction": "return"
+  }
+]

@@ -1,0 +1,58 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+
+# Virtual environments
+.venv
+venv/
+
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# uv
+.uv/
+uv.lock.bak
+
+
+# Postgres / local data
+*.sql
+pgdata/
+postgres-data/
+
+
+# Dummy data outputs (keep if you want it tracked — see note below)
+# data/*.json
+
+
+# Alembic
+# (keep versions/ tracked — only ignore local scratch if any)
+
+
+# Logs
+*.log
+logs/
+
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+
+# Checkpointer / runtime artifacts
+*.checkpoint

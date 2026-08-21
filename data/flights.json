@@ -1,0 +1,26 @@
+[
+  {
+    "flight_id": "FL001", "direction": "outbound", "airline": "IndiGo", "flight_number": "6E-5312",
+    "departure_airport": "AMD", "arrival_airport": "GOI",
+    "departure_time": "2026-09-10T08:15:00", "arrival_time": "2026-09-10T09:45:00",
+    "duration_minutes": 90, "stops": 0, "price": 4200.0, "currency": "INR"
+  },
+  {
+    "flight_id": "FL002", "direction": "outbound", "airline": "Air India Express", "flight_number": "IX-1187",
+    "departure_airport": "AMD", "arrival_airport": "GOI",
+    "departure_time": "2026-09-10T14:00:00", "arrival_time": "2026-09-10T17:30:00",
+    "duration_minutes": 210, "stops": 1, "price": 3100.0, "currency": "INR"
+  },
+  {
+    "flight_id": "FL003", "direction": "return", "airline": "IndiGo", "flight_number": "6E-5319",
+    "departure_airport": "GOI", "arrival_airport": "AMD",
+    "departure_time": "2026-09-14T18:20:00", "arrival_time": "2026-09-14T19:50:00",
+    "duration_minutes": 90, "stops": 0, "price": 4500.0, "currency": "INR"
+  },
+  {
+    "flight_id": "FL004", "direction": "return", "airline": "Vistara", "flight_number": "UK-2745",
+    "departure_airport": "GOI", "arrival_airport": "AMD",
+    "departure_time": "2026-09-14T20:10:00", "arrival_time": "2026-09-14T21:40:00",
+    "duration_minutes": 90, "stops": 0, "price": 5100.0, "currency": "INR"
+  }
+]
