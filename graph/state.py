@@ -44,3 +44,6 @@ class TripState(TypedDict):
 
     # ── Execution status (for frontend progress UI) ─────────────────────────
     status: str                         # current node name, drives frontend progress UI
+
+    # ── Concierge clarification loop ────────────────────────────────────────
+    clarification_attempts: int   # 0 = not yet asked, 1 = one round used, 2 = fallback used

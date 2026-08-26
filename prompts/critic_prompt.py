@@ -1,3 +1,5 @@
+import json
+
 """
 Critic / Revision Agent — prompts/critic_prompt.py
 
@@ -110,6 +112,6 @@ def build_critic_user_message(user_request: str) -> str:
     """
     return f"""Here is the user's feedback during review:
 
-{{"user_request": "{user_request}"}}
+{json.dumps({"user_request": user_request}, indent=2)}
 
 Decide the routing target according to your instructions."""

@@ -1,3 +1,5 @@
+import json
+
 """
 Planner Agent — prompts/planner_prompt.py
 
@@ -112,6 +114,6 @@ def build_planner_user_message(normalized_input: dict) -> str:
     """
     return f"""Here is the normalized trip data to plan a search strategy for:
 
-{normalized_input}
+{json.dumps(normalized_input, indent=2)}
 
 Decide the search strategy according to your instructions."""

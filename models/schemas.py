@@ -106,7 +106,7 @@ class TripContext(BaseModel):
 TransportMode = Literal["flights", "trains", "buses", "cars"]
 
 
-class Plan(BaseModel):
+class SearchPlan(BaseModel):
     """
     Planner Agent's output. Narrows transport_pref + budget_tier into a
     concrete search strategy before the tool nodes fan out. Written to
@@ -188,11 +188,19 @@ class Itinerary(BaseModel):
         description="List, not a single object — handles round trips and "
         "mixed-mode legs (e.g. fly out, train back) without needing a "
         "schema change. Each entry: {'leg': 'outbound'|'return', "
-        "'mode': 'flight'|'train'|'bus'|'car', ...full fields from the "
-        "matching tool node object}."
+        "'mode': 'flight'|'train'|'bus', ...full fields from the "
+        "matching tool node object}. A rental car is NEVER represented "
+        "here — see chosen_car."
+    )
+    chosen_car: dict | None = Field(
+        default=None,
+        description="Full rental car object if wants_rental_car was true, "
+        "else null. Represents local mobility availability for the trip "
+        "duration, not a point-to-point transport leg — never appears in "
+        "chosen_transport and never appears as a scheduled event in days."
     )
     chosen_hotel: dict = Field(
-        description="Full hotel object as returned by   search_hotels."
+        description="Full hotel object as returned by search_hotels."
     )
     days: list[dict] = Field(
         description="Each entry: {'date': ISO str, 'events': [...]}. date is "

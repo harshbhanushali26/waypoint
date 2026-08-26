@@ -137,19 +137,26 @@ parallel fan-out.
 | `status` | str | Current node name, drives frontend progress UI |
 
 
-### Current Status 
+## Current Status
 
-- Tool Nodes
-- Prompts
-- Models
-- Main Langraph State
-- Initial Docker and Postgres setup
+- Environment & tooling (uv, Python 3.12, Docker Postgres)
+- Database layer (SQLAlchemy models + Alembic migrations, checkpointer tables)
+- State schema (TripState)
+- Tool Nodes (all 7, dummy-data stage)
+- Agent Prompts (all 5 reasoning agents)
+- Agent Node Functions (all 5 reasoning agents, Command-based Critic routing)
+- Graph Wiring (StateGraph, human_review interrupt, checkpointer — approve
+  path, edit-request path, invalid-target error path all tested)
 
+## Remaining Work
 
-### Remaining Work
-
-- Agent Nodes
-- Graph Wiring
-- Frontend
-- Some Database and Backend work
-- APIs
+- FastAPI layer (trip start, review feedback, itinerary/status endpoints;
+  also needs to own Trip row creation at request time)
+- Open design question: should Critic-routed cost-reduction edits go through
+  the Planner (full replan) or straight to tool nodes (current behavior) —
+  needs a decision before/during the FastAPI work
+- Frontend (plain HTML/CSS/JS)
+- Real API integrations — flights/hotels, trains, activities, weather
+  (currently all dummy JSON)
+- MCP tools stage
+- Real token telemetry, Tenacity retry wrapping
