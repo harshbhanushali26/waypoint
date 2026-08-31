@@ -50,7 +50,7 @@ def concierge_node(state: TripState) -> dict:
         if not response.needs_clarification:
             trip_context = TripContext(**response.model_dump())
             print(f"[Concierge] normalized_input: {trip_context.model_dump()}")
-            return {"normalized_input": trip_context.model_dump()}
+            return {"normalized_input": trip_context.model_dump(), "status": "planning"}
 
         print(f"[Concierge] clarification_question: {response.clarification_question}")
 
@@ -82,6 +82,7 @@ def concierge_node(state: TripState) -> dict:
             return {
                 "normalized_input": trip_context.model_dump(),
                 "clarification_attempts": 1,
+                "status": "planning"
             }
 
         # ---- Round 2 still ambiguous -> fallback, no second interrupt ----
@@ -110,4 +111,5 @@ def concierge_node(state: TripState) -> dict:
         return {
             "normalized_input": fallback_response.model_dump(),
             "clarification_attempts": 2,
+            "status": "planning"
         }

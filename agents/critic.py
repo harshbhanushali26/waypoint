@@ -38,6 +38,10 @@ def critic_node(state: TripState) -> Command:
     # structured_llm = llm.with_structured_output(CriticAnalysis)
     structured_llm = get_structured_llm(CriticAnalysis)
 
+    print("--- Critic ---")
+    print(len(CRITIC_SYSTEM_PROMPT))
+    print(len(build_critic_user_message(user_request)))
+
     response = structured_llm.invoke(
         [
             {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
@@ -47,6 +51,7 @@ def critic_node(state: TripState) -> Command:
     )
 
     critic_analysis = response.model_dump()
+    print(f"[Critic] : {critic_analysis}")
     target = critic_analysis["target"]
 
     invalid = [t for t in target if t not in VALID_TARGETS]

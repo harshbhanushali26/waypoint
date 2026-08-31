@@ -45,10 +45,13 @@ Do this in order:
      Carry the FULL hotel object, not just an ID or name.
 
 4. BUILD DAY-BY-DAY SCHEDULE
-   - One entry per calendar day of the trip. Each day has an explicit
-     "date" (ISO string) — never rely on list position to imply which day
-     something is. Every day must state its own date even though the days
-     are naturally in order.
+   - Build exactly one day entry for each date in `trip_dates`, in the
+     order given — no more, no fewer. Do not compute the date range
+     yourself or infer it from start_date/end_date; `trip_dates` is the
+     authoritative list of days to build.
+   - Each day has an explicit "date" (ISO string) taken directly from
+     `trip_dates` — never rely on list position to imply which day
+     something is.
    - Each day has ONE events list mixing every event type together
      (transport, hotel_checkin, hotel_checkout, activity), sorted by time.
      Do not use separate lists per event type.
@@ -78,12 +81,13 @@ commentary outside the structured response.
 
 ---
 
-EXAMPLE 1 — 2-day trip, no rental car (shortened for illustration; a real
-itinerary covers every day of the trip the same way)
+EXAMPLE 1 — no rental car, flight transport. A real itinerary covers every
+date in `trip_dates` the same way this single day does.
 
 Input (abbreviated):
 {
   "trip_summary": {"destination": "Goa, India", "start_date": "2026-11-10", "end_date": "2026-11-11", "num_travelers": 2},
+  "trip_dates": ["2026-11-10", "2026-11-11"],
   "transport_priority": ["flights"],
   "flights": [
     {"flight_id": "F1", "direction": "outbound", "airline": "IndiGo", "departure_time": "2026-11-10T08:00", "arrival_time": "2026-11-10T09:45", "price": 4500},
@@ -91,7 +95,7 @@ Input (abbreviated):
   ],
   "hotels": [{"hotel_id": "H1", "name": "Seaside Resort", "total_price": 8000, "check_in_time": "14:00", "check_out_time": "11:00"}],
   "activities": [{"title": "Beach hopping tour", "url": "..."}],
-  "weather": [{"date": "2026-11-10", "condition": "sunny"}, {"date": "2026-11-11", "condition": "sunny"}],
+  "weather": [{"date": "2026-11-10", "condition": "sunny"}],
   "pace": "relaxed",
   "wants_rental_car": false,
   "cars": []
@@ -114,45 +118,39 @@ Output:
         {"type": "hotel_checkin", "time": "14:00", "title": "Check in at Seaside Resort", "details": ""},
         {"type": "activity", "time": "16:00", "title": "Beach hopping tour", "details": "Sunny weather, good for an outdoor afternoon"}
       ]
-    },
-    {
-      "date": "2026-11-11",
-      "events": [
-        {"type": "hotel_checkout", "time": "11:00", "title": "Check out of Seaside Resort", "details": ""},
-        {"type": "transport", "time": "18:00", "title": "Flight back", "details": "IndiGo, arrives 19:45"}
-      ]
     }
   ],
   "total_cost": 17200
 }
+(Day 2, 2026-11-11, follows the same pattern: a hotel_checkout event, then
+the return flight leg as a transport event. If `trip_dates` had contained
+a third date, a third day entry would follow the same pattern again — the
+day count always comes from `trip_dates`, never from inference.)
 
 ---
 
-EXAMPLE 2 — rental car requested, shown in chosen_car, not in chosen_transport
-or in the daily events list
+EXAMPLE 2 — rental car requested, bus transport. Shows chosen_car staying
+separate from chosen_transport and from the daily events list.
 
-Input (abbreviated):
+Input fields carried through UNCHANGED in the output (full objects, same
+as Example 1 — not re-shown here): the selected bus legs (outbound +
+return, mode "bus"), the selected hotel object, and the selected car
+object from `cars`.
+
+Key differences from Example 1 to notice:
 {
-  "trip_summary": {"destination": "Manali, India", "start_date": "2026-12-05", "end_date": "2026-12-06", "num_travelers": 1},
-  "transport_priority": ["buses"],
-  "buses": [{"bus_id": "B1", "direction": "outbound", "operator": "HRTC", "departure_time": "2026-12-05T06:00", "arrival_time": "2026-12-05T14:00", "price": 900}, {"bus_id": "B2", "direction": "return", "operator": "HRTC", "departure_time": "2026-12-06T20:00", "arrival_time": "2026-12-07T04:00", "price": 900}],
-  "hotels": [{"hotel_id": "H2", "name": "Mountain View Inn", "total_price": 3000, "check_in_time": "13:00", "check_out_time": "10:00"}],
-  "activities": [{"title": "Solang Valley visit", "url": "..."}],
-  "weather": [{"date": "2026-12-05", "condition": "clear"}, {"date": "2026-12-06", "condition": "clear"}],
-  "pace": "moderate",
+  "trip_dates": ["2026-12-05"],
   "wants_rental_car": true,
   "cars": [{"car_id": "C1", "vendor": "Zoomcar", "type": "hatchback", "total_price": 1800}]
 }
 
-Output:
+Output (only the parts that differ from Example 1's shape):
 {
-  "trip_summary": {"destination": "Manali, India", "start_date": "2026-12-05", "end_date": "2026-12-06", "num_travelers": 1},
   "chosen_transport": [
-    {"leg": "outbound", "mode": "bus", "bus_id": "B1", "operator": "HRTC", "departure_time": "2026-12-05T06:00", "arrival_time": "2026-12-05T14:00", "price": 900},
-    {"leg": "return", "mode": "bus", "bus_id": "B2", "operator": "HRTC", "departure_time": "2026-12-06T20:00", "arrival_time": "2026-12-07T04:00", "price": 900}
+    {"leg": "outbound", "mode": "bus", "bus_id": "B1", ...},
+    {"leg": "return", "mode": "bus", "bus_id": "B2", ...}
   ],
   "chosen_car": {"car_id": "C1", "vendor": "Zoomcar", "type": "hatchback", "total_price": 1800},
-  "chosen_hotel": {"hotel_id": "H2", "name": "Mountain View Inn", "total_price": 3000, "check_in_time": "13:00", "check_out_time": "10:00"},
   "days": [
     {
       "date": "2026-12-05",
@@ -160,13 +158,6 @@ Output:
         {"type": "transport", "time": "06:00", "title": "Bus to Manali", "details": "HRTC, arrives 14:00"},
         {"type": "hotel_checkin", "time": "13:00", "title": "Check in at Mountain View Inn", "details": ""},
         {"type": "activity", "time": "15:30", "title": "Solang Valley visit", "details": "Clear weather, good for an outdoor afternoon"}
-      ]
-    },
-    {
-      "date": "2026-12-06",
-      "events": [
-        {"type": "hotel_checkout", "time": "10:00", "title": "Check out of Mountain View Inn", "details": ""},
-        {"type": "transport", "time": "20:00", "title": "Bus back", "details": "HRTC, arrives 04:00"}
       ]
     }
   ],
@@ -183,8 +174,19 @@ not a timed event.
 def build_itinerary_builder_user_message(state_slice: dict) -> str:
     """
     state_slice contains: search_plan, flights, trains, buses, cars,
-    hotels, activities, weather, budget_analysis, and normalized_input
-    (for trip_summary + pace + wants_rental_car).
+    hotels, activities, weather, budget_analysis, trip_summary, and
+    trip_dates (for pace + wants_rental_car see normalized_input passthrough
+    fields already present in state_slice).
+
+    NOTE: transport-type fields (flights/trains/buses) should already be
+    filtered down to only the modes in search_plan['transport_modes']
+    by the caller (itinerary_builder_node) before this function is called.
+    This function does not filter — it only serializes whatever it's given.
+
+    trip_dates is computed by the caller (itinerary_builder_node) via
+    _compute_trip_dates() — the explicit, authoritative list of ISO dates
+    the model must build one day entry per, rather than deriving the count
+    itself from start_date/end_date.
     """
     import json
 
@@ -192,4 +194,4 @@ def build_itinerary_builder_user_message(state_slice: dict) -> str:
 
 {json.dumps(state_slice, indent=2)}
 
-Compose the day-by-day itinerary according to your instructions."""
+Compose the day-by-day itinerary according to your instructions.""" 

@@ -49,4 +49,4 @@ def planner_node(state: TripState) -> dict:
         )
         search_plan["transport_priority"] = filtered_priority
 
-    return {"search_plan": search_plan}
+    return {"search_plan": search_plan, "status": "searching_and_analyzing_budget"}

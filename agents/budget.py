@@ -96,4 +96,4 @@ def budget_node(state: TripState) -> dict:
     }
 
     print(f"[Budget] budget_analysis: {budget_analysis}")
-    return {"budget_analysis": budget_analysis}
+    return {"budget_analysis": budget_analysis, "status": "building_itinerary"}
