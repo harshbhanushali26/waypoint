@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your trip — Waypoint</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a href="form.html" class="wordmark">waypoint</a>
+
+<div class="shell final-shell">
+
+  <div class="submit-error" id="pageError"></div>
+
+  <div class="trip-summary-bar">
+    <div class="finalized-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Finalized
+    </div>
+    <div class="trip-summary-top">
+      <div>
+        <h1 id="rv-title">—</h1>
+        <p id="rv-subtitle">—</p>
+      </div>
+      <div class="trip-summary-cost">
+        <div class="amount">₹<span id="rv-cost">0</span></div>
+        <div class="label">Total cost</div>
+      </div>
+    </div>
+    <div class="budget-flag" id="budgetFlag"></div>
+  </div>
+
+  <div class="final-actions-row">
+    <button class="btn-pill btn-secondary-pill" id="copyLinkBtn">
+      Copy link
+    </button>
+    <button class="btn-pill" id="downloadBtn">
+      Download itinerary
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    </button>
+  </div>
+
+  <div id="dayCards"></div>
+
+  <a href="form.html" class="btn-ghost-link" style="margin-top:8px;">Start a new trip</a>
+
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/itinerary-render.js"></script>
+<script src="js/final.js"></script>
+</body>
+</html>

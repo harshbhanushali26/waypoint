@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan a trip — Waypoint</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="wordmark">waypoint</div>
+
+<div class="shell">
+
+  <div id="formView">
+    <div class="page-head">
+      <h1>Plan your trip</h1>
+      <p>Let's craft the perfect itinerary.</p>
+    </div>
+
+    <form id="tripForm" novalidate>
+
+      <!-- Destination & Dates -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAA12A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.5.9c-.3.5-.1 1.1.4 1.4L9 12l-2 3H4l-1 1.5 3 1 1 3L8.5 19l3-2 3.1 5.4c.3.5.9.7 1.4.4l.9-.5c.4-.2.6-.6.5-1.1z"/></svg></div>
+          <h2>Destination & Dates</h2>
+        </div>
+
+        <div class="field" id="f-destination">
+          <label for="destination">Where are you going?</label>
+          <input type="text" id="destination" placeholder="e.g. Kyoto, Japan" autocomplete="off">
+          <div class="error">Enter a destination.</div>
+        </div>
+
+        <div class="field" id="f-origin">
+          <label for="origin">Where are you starting from?</label>
+          <input type="text" id="origin" placeholder="e.g. Ahmedabad" autocomplete="off">
+          <div class="error">Enter your origin city.</div>
+        </div>
+
+        <div class="field" id="f-travelers">
+          <label for="travelers">Traveler count</label>
+          <input type="number" id="travelers" min="1" step="1" placeholder="1">
+          <div class="error">Enter at least 1 traveler.</div>
+        </div>
+
+        <div class="row-2">
+          <div class="field" id="f-start">
+            <label for="startDate">Start date</label>
+            <input type="date" id="startDate">
+            <div class="error">Start date can't be in the past.</div>
+          </div>
+          <div class="field" id="f-end">
+            <label for="endDate">End date</label>
+            <input type="date" id="endDate">
+            <div class="error">End date must be after the start date.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Travel Style -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAA12A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
+          <h2>Travel Style</h2>
+        </div>
+
+        <div class="field">
+          <label>Interests</label>
+          <div class="chips" id="interestChips">
+            <div class="chip selected" data-value="food">Food</div>
+            <div class="chip" data-value="nature">Nature</div>
+            <div class="chip" data-value="nightlife">Nightlife</div>
+            <div class="chip" data-value="history">History</div>
+            <div class="chip" data-value="shopping">Shopping</div>
+            <div class="chip" data-value="adventure">Adventure</div>
+            <div class="chip" data-value="relaxation">Relaxation</div>
+            <div class="chip" data-value="art">Art</div>
+            <div class="chip" data-value="local culture">Local culture</div>
+            <div class="chip" data-value="family">Family</div>
+            <div class="chip" data-value="budget">Budget</div>
+            <div class="chip" data-value="luxury">Luxury</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="transportPref">Transport preference</label>
+          <select id="transportPref">
+            <option value="any" selected>Any — let Waypoint decide</option>
+            <option value="flights">Flights</option>
+            <option value="trains">Trains</option>
+            <option value="buses">Buses</option>
+            <option value="cars">Cars</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Rental car for local travel</label>
+          <div class="radio-group" id="carRentalGroup">
+            <div class="radio-opt" data-value="true">Yes</div>
+            <div class="radio-opt selected" data-value="false">No</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="pace">Pace</label>
+          <select id="pace">
+            <option value="relaxed">Relaxed</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="packed">Packed</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Budget -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAA12A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg></div>
+          <h2>Budget</h2>
+        </div>
+
+        <div class="row-2">
+          <div class="field" id="f-budget">
+            <label for="budget">Total budget</label>
+            <input type="number" id="budget" min="1" placeholder="e.g. 80000">
+            <div class="error">Enter a budget greater than 0.</div>
+          </div>
+          <div class="field">
+            <label for="currency">Currency</label>
+            <select id="currency">
+              <option value="INR" selected>INR — Indian Rupee</option>
+              <option value="USD">USD — US Dollar</option>
+              <option value="EUR">EUR — Euro</option>
+              <option value="GBP">GBP — British Pound</option>
+              <option value="JPY">JPY — Japanese Yen</option>
+              <option value="AED">AED — UAE Dirham</option>
+              <option value="SGD">SGD — Singapore Dollar</option>
+              <option value="AUD">AUD — Australian Dollar</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint">Covers transport, stay, and activities for the whole trip.</div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-pill" onclick="goToReview()">
+          Review trip
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div id="reviewView">
+    <div class="page-head">
+      <h1>Check the details</h1>
+      <p>Everything looks right? Let's start planning.</p>
+    </div>
+
+    <div class="review-card">
+      <div class="review-head"><span>Destination & dates</span><a onclick="backToForm()">Edit</a></div>
+      <div class="review-row"><span class="k">Destination</span><span class="v" id="rv-destination"></span></div>
+      <div class="review-row"><span class="k">Origin</span><span class="v" id="rv-origin"></span></div>
+      <div class="review-row"><span class="k">Dates</span><span class="v" id="rv-dates"></span></div>
+      <div class="review-row"><span class="k">Travelers</span><span class="v" id="rv-travelers"></span></div>
+    </div>
+
+    <div class="review-card">
+      <div class="review-head"><span>Travel style</span><a onclick="backToForm()">Edit</a></div>
+      <div class="review-row"><span class="k">Interests</span><span class="v" id="rv-interests"></span></div>
+      <div class="review-row"><span class="k">Transport</span><span class="v" id="rv-transport"></span></div>
+      <div class="review-row"><span class="k">Rental car</span><span class="v" id="rv-rental"></span></div>
+      <div class="review-row"><span class="k">Pace</span><span class="v" id="rv-pace"></span></div>
+    </div>
+
+    <div class="review-card">
+      <div class="review-head"><span>Budget</span><a onclick="backToForm()">Edit</a></div>
+      <div class="review-row"><span class="k">Total budget</span><span class="v" id="rv-budget"></span></div>
+    </div>
+
+    <div class="submit-error" id="submitError"></div>
+
+    <div class="btn-row" style="flex-direction:column; align-items:center; gap:4px;">
+      <button type="button" class="btn-pill" id="submitBtn" onclick="submitTrip()">
+        Start planning
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <span class="btn-ghost-link" onclick="backToForm()">Back to edit</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/form.js"></script>
+</body>
+</html>

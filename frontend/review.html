@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review your itinerary — Waypoint</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a href="form.html" class="wordmark">waypoint</a>
+
+<div class="shell review-shell">
+
+  <div class="submit-error" id="pageError"></div>
+
+  <div class="trip-summary-bar">
+    <div class="trip-summary-top">
+      <div>
+        <h1 id="rv-title">—</h1>
+        <p id="rv-subtitle">—</p>
+      </div>
+      <div class="trip-summary-cost">
+        <div class="amount">₹<span id="rv-cost">0</span></div>
+        <div class="label">Estimated total</div>
+      </div>
+    </div>
+    <div class="budget-flag" id="budgetFlag"></div>
+  </div>
+
+  <div class="review-layout">
+    <!-- Day cards -->
+    <div id="dayCards"></div>
+
+    <!-- Chat panel -->
+    <div class="chat-panel">
+      <h3>Refine your trip</h3>
+
+      <div class="quick-chips">
+        <div class="quick-chip" data-text="Can you make this trip cheaper overall?">Make it cheaper</div>
+        <div class="quick-chip" data-text="Can you make day 2 less packed with fewer activities?">Less walking</div>
+        <div class="quick-chip" data-text="Can you switch to a different hotel?">Different hotel</div>
+      </div>
+
+      <div class="updating-banner" id="updatingBanner">
+        <div class="pulse-dot"></div>
+        <span>Updating your itinerary...</span>
+      </div>
+
+      <div class="chat-messages" id="chatMessages"></div>
+
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="e.g. Make it cheaper">
+        <button class="chat-send-btn" id="chatSendBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <button class="btn-pill approve-btn-full" id="approveBtn">
+        Approve itinerary
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </button>
+
+      <div class="approve-confirm" id="approveConfirm">
+        <p>Finalize this itinerary? This locks it in.</p>
+        <div class="approve-confirm-row">
+          <button class="btn-pill btn-cancel" id="cancelApproveBtn">Cancel</button>
+          <button class="btn-pill" id="confirmApproveBtn">Yes, finalize</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/itinerary-render.js"></script>
+<script src="js/review.js"></script>
+</body>
+</html>
