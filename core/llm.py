@@ -45,11 +45,19 @@ from core.config import settings
 
 MODEL = "openai/gpt-oss-120b"
 
+# AGENT_MAX_TOKENS: dict = {
+#     "concierge": 1000,
+#     "planner": 1000,
+#     "budget": 1500,
+#     "itinerary_builder": 5000, 
+#     "critic": 800,
+# }
+
 AGENT_MAX_TOKENS: dict = {
-    "concierge": 1000,
-    "planner": 1000,
-    "budget": 1500,
-    "itinerary_builder": 5000, 
+    "concierge": 650,
+    "planner": 700,
+    "budget": 550,
+    "itinerary_builder": 5000,
     "critic": 800,
 }
 

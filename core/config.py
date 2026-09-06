@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     tavily_api_key: str
     openai_api_key: str | None = None
 
+    # --- Tool API keys ---
+    serpapi_flights_key: str = ""        # Account 1 — google_flights engine
+    serpapi_hotels_key: str = ""         # Account 2 — google_hotels engine
+    railradar_api_key: str = ""          # Bearer token for api.railradar.in
+
     # --- Derived, not read from .env directly ---
     database_url: str = ""
 
