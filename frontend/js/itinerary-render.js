@@ -53,6 +53,7 @@ function renderTripHeader(itinerary, budgetAnalysis, opts = {}) {
   } else {
     flag.style.display = 'none';
   }
+  renderDataGaps(itinerary);
 }
 
 function renderDays(itinerary, containerId = 'dayCards') {
@@ -84,5 +85,31 @@ function renderDays(itinerary, containerId = 'dayCards') {
       ${eventsHtml}
     `;
     container.appendChild(card);
+  });
+}
+
+function renderDataGaps(itinerary) {
+  const el = document.getElementById('dataGapsNotice');
+  if (!el) return;
+
+  const gaps = itinerary.data_gaps;
+  if (!gaps || gaps.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const text = gaps.length === 1
+    ? gaps[0]
+    : `Some live data was unavailable when this was built: ${gaps.join(' ')}`;
+
+  el.innerHTML = `
+    <span class="dgn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg></span>
+    <span>${escapeHtml(text)}</span>
+    <span class="dgn-close" title="Dismiss">✕</span>
+  `;
+  el.style.display = 'flex';
+
+  el.querySelector('.dgn-close').addEventListener('click', () => {
+    el.style.display = 'none';
   });
 }

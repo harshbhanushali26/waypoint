@@ -465,6 +465,30 @@ select {
   .chat-panel { position: static; max-height: none; }
 }
 
+.data-gap-notice {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255,76,255,0.08);
+  border: 1px solid rgba(255,76,255,0.25);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.data-gap-notice .dgn-icon { color: var(--magenta); flex-shrink: 0; margin-top: 1px; }
+.data-gap-notice .dgn-close {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.data-gap-notice .dgn-close:hover { color: var(--text-primary); }
+
+
 /* ---------- final itinerary page ---------- */
 .final-shell { max-width: 700px; }
 
