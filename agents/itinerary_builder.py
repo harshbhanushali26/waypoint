@@ -44,6 +44,35 @@ _HOTEL_FIELDS = [
     "check_in_time", "check_out_time", "latitude", "longitude",
 ]
 
+_ACTIVITY_FIELDS = ["title", "snippet", "url"]
+
+
+def _collect_data_gaps(state: TripState, transport_modes: set[str]) -> list[str]:
+    """
+    Surface only expected-but-missing data - a mode was actually
+    selected and its fetch failed (empty result + a *_note in state).
+    Never fires for unselected modes or legitimate empty results
+    with no accompanying note.
+    """
+    gaps = []
+
+    def _check(note_key: str, result_key: str, expected: bool):
+        if not expected:
+            return
+        if state.get(result_key):
+            return
+        note = state.get(note_key)
+        if note:
+            gaps.append(note)
+
+    _check("flights_note", "flights", "flights" in transport_modes)
+    _check("trains_note", "trains", "trains" in transport_modes)
+    _check("hotels_note", "hotels", True)
+    _check("activities_note", "activities", True)
+    _check("weather_note", "weather", True)
+
+    return gaps
+
 
 def _trim(objects: list[dict], allowed_fields: list[str]) -> list[dict]:
     """Keep only the allowlisted fields on each object in the list."""
@@ -79,6 +108,17 @@ def _compute_trip_dates(start_date: str, end_date: str) -> list[str]:
     end = date.fromisoformat(end_date)
     days = (end - start).days + 1
     return [(start + timedelta(days=i)).isoformat() for i in range(days)]
+
+
+def _filter_priced_trains(trains: list[dict]) -> list[dict]:
+    """
+    Only MAX_FARE_LOOKUPS trains per direction ever get a real fare (see
+    search_trains.py) - the rest sit at price=0, class_code="" and are not
+    meaningfully choosable. Filtering here means the itinerary prompt only
+    ever sees trains it could actually select and cost out, and naturally
+    bounds the list size without an arbitrary top-N cut.
+    """
+    return [t for t in trains if t.get("price", 0) > 0]
 
 
 def itinerary_builder_node(state: TripState) -> dict:
@@ -124,6 +164,7 @@ def itinerary_builder_node(state: TripState) -> dict:
             raise RuntimeError("Itinerary revision parsing failed - see raw content and token usage above")
 
         itinerary = response["parsed"].model_dump()
+        itinerary["data_gaps"] = state["itinerary"].get("data_gaps", [])
         print(f"[Itinerary revise] itinerary: {itinerary}")
 
         return {"itinerary": itinerary, "status": "awaiting_review"}
@@ -148,9 +189,11 @@ def itinerary_builder_node(state: TripState) -> dict:
     buses = _trim(buses, _BUS_FIELDS)
     cars = _trim(cars, _CAR_FIELDS)
     hotels = _trim(hotels, _HOTEL_FIELDS)
+    activities = _trim(activities, _ACTIVITY_FIELDS) 
 
     hotels = hotels[:3]
     activities = activities[:8]
+    trains = _filter_priced_trains(trains)
 
     weather = _filter_weather_to_trip_dates(
         weather,
@@ -178,6 +221,10 @@ def itinerary_builder_node(state: TripState) -> dict:
         "pace": normalized_input["pace"],
         "wants_rental_car": normalized_input["wants_rental_car"],
     }
+
+
+    print("--- Itinerary data input ---")
+    print(state_slice)
 
     # structured_llm = get_structured_llm(Itinerary)
     # structured_llm = get_structured_llm(Itinerary, include_raw=True)
@@ -210,6 +257,8 @@ def itinerary_builder_node(state: TripState) -> dict:
 
     itinerary = response["parsed"].model_dump()
     print(f"[Itinerary] itinerary: {itinerary}")
+
+    itinerary["data_gaps"] = _collect_data_gaps(state, transport_modes)
 
     if not normalized_input["wants_rental_car"] and itinerary.get("chosen_car") is not None:
         logger.warning(
