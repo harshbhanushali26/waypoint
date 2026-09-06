@@ -57,9 +57,63 @@ class ReviewResponse(BaseModel):
     accepted: bool
 
 
+def _index_by_id(objects: list[dict], id_field: str) -> dict[str, dict]:
+    """Build a lookup dict keyed by id_field, skipping objects that don't have it."""
+    return {obj[id_field]: obj for obj in objects if id_field in obj}
 
 
+_TRANSPORT_ID_FIELDS = {
+    "flight": "flight_id",
+    "train": "train_id",
+    "bus": "bus_id",
+}
 
+
+def _enrich_itinerary(itinerary: dict, state: dict) -> dict:
+    """
+    Fills the LLM-trimmed chosen_hotel / chosen_transport / chosen_car
+    objects back in with their full untrimmed fields (images, amenities,
+    OTA prices, airline logos, etc.) by matching on the id field each
+    object already carries. Pure mechanical lookup — no judgment, nothing
+    the LLM needs to see. If a match isn't found (e.g. state pruned or the
+    id is missing), the original trimmed object is left as-is rather than
+    failing the whole response.
+    """
+    enriched = dict(itinerary)  # shallow copy, don't mutate the checkpoint's dict
+
+    # ── Hotel ──────────────────────────────────────────────────────────
+    hotel_lookup = _index_by_id(state.get("hotels", []), "hotel_id")
+    chosen_hotel = enriched.get("chosen_hotel")
+    if chosen_hotel and chosen_hotel.get("hotel_id") in hotel_lookup:
+        enriched["chosen_hotel"] = {
+            **hotel_lookup[chosen_hotel["hotel_id"]],
+            **chosen_hotel,  # itinerary's own fields take priority if they overlap
+        }
+
+    # ── Transport (list of legs, each tagged with a mode) ────────────────
+    flight_lookup = _index_by_id(state.get("flights", []), "flight_id")
+    train_lookup = _index_by_id(state.get("trains", []), "train_id")
+    bus_lookup = _index_by_id(state.get("buses", []), "bus_id")
+    mode_lookups = {"flight": flight_lookup, "train": train_lookup, "bus": bus_lookup}
+
+    enriched_transport = []
+    for leg in enriched.get("chosen_transport", []):
+        mode = leg.get("mode")
+        id_field = _TRANSPORT_ID_FIELDS.get(mode)
+        lookup = mode_lookups.get(mode, {})
+        if id_field and leg.get(id_field) in lookup:
+            enriched_transport.append({**lookup[leg[id_field]], **leg})
+        else:
+            enriched_transport.append(leg)
+    enriched["chosen_transport"] = enriched_transport
+
+    # ── Rental car ─────────────────────────────────────────────────────
+    car_lookup = _index_by_id(state.get("cars", []), "car_id")
+    chosen_car = enriched.get("chosen_car")
+    if chosen_car and chosen_car.get("car_id") in car_lookup:
+        enriched["chosen_car"] = {**car_lookup[chosen_car["car_id"]], **chosen_car}
+
+    return enriched
 
 
 async def _run_graph(graph, trip_id: str, initial_state: dict):
@@ -154,6 +208,8 @@ async def get_trip_itinerary(trip_id: str, request: Request):
             status_code=409,
             detail=f"Itinerary not yet available (status: {snapshot.values.get('status')})",
         )
+
+    itinerary = _enrich_itinerary(itinerary, snapshot.values)
 
     return TripItineraryResponse(
         trip_id=trip_id,
