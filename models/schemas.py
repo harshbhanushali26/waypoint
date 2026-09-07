@@ -213,13 +213,13 @@ class Itinerary(BaseModel):
         description="Actual cost of what was chosen — distinct from Budget "
         "Agent's earlier estimated_total."
     )
-    data_gaps: list[str] = Field(
-        default=[],
-        description="Human-readable notes for any expected data source that "
-        "failed to fetch (e.g. flight search timed out). Empty when nothing "
-        "was missing. Populated mechanically by the builder node, never by "
-        "the LLM — not part of the prompt output.",
-    )
+    # data_gaps: list[str] = Field(
+    #     default=[],
+    #     description="Human-readable notes for any expected data source that "
+    #     "failed to fetch (e.g. flight search timed out). Empty when nothing "
+    #     "was missing. Populated mechanically by the builder node, never by "
+    #     "the LLM — not part of the prompt output.",
+    # )
 
 
 # ─────────────────────────────────────────────────────────────

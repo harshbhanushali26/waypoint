@@ -81,7 +81,6 @@ def _normalize_hotel(raw: dict, currency: str) -> dict:
     }
 
 
-
 def search_hotels(state: dict) -> dict:
     """
     Tool node entry point. Fails loud on any problem — no dummy fallback.
@@ -111,7 +110,15 @@ def search_hotels(state: dict) -> dict:
             "api_key": settings.serpapi_hotels_key,
         }
         raw_hotels = _fetch_hotels(params)
-        return {"hotels": [_normalize_hotel(h, currency) for h in raw_hotels]}
+        hotels = [_normalize_hotel(h, currency) for h in raw_hotels]
+
+        # SerpApi returns hotels in Google's default ranking order
+        # (relevance/popularity), not by price. Sort by total_price
+        # ascending so the budget node's min() and the itinerary
+        # builder's top-N cut both see the cheapest hotels first.
+        hotels.sort(key=lambda h: h.get("total_price", 0))
+
+        return {"hotels": hotels}
 
     except Exception as e:
-        return {"hotels": [], "hotels_note": f"Hotel search failed: {e}"}
+        return {"hotels": [], "hotels_note": f"Hotel search failed: {e}"}   

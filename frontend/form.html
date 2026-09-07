@@ -10,7 +10,7 @@
 </head>
 <body>
 
-<div class="wordmark">waypoint</div>
+<a href="landing.html" class="wordmark">waypoint</a>
 
 <div class="shell">
 
@@ -31,7 +31,7 @@
 
         <div class="field" id="f-destination">
           <label for="destination">Where are you going?</label>
-          <input type="text" id="destination" placeholder="e.g. Kyoto, Japan" autocomplete="off">
+          <input type="text" id="destination" placeholder="e.g. Goa" autocomplete="off">
           <div class="error">Enter a destination.</div>
         </div>
 
@@ -122,25 +122,10 @@
           <h2>Budget</h2>
         </div>
 
-        <div class="row-2">
-          <div class="field" id="f-budget">
-            <label for="budget">Total budget</label>
-            <input type="number" id="budget" min="1" placeholder="e.g. 80000">
-            <div class="error">Enter a budget greater than 0.</div>
-          </div>
-          <div class="field">
-            <label for="currency">Currency</label>
-            <select id="currency">
-              <option value="INR" selected>INR — Indian Rupee</option>
-              <option value="USD">USD — US Dollar</option>
-              <option value="EUR">EUR — Euro</option>
-              <option value="GBP">GBP — British Pound</option>
-              <option value="JPY">JPY — Japanese Yen</option>
-              <option value="AED">AED — UAE Dirham</option>
-              <option value="SGD">SGD — Singapore Dollar</option>
-              <option value="AUD">AUD — Australian Dollar</option>
-            </select>
-          </div>
+        <div class="field" id="f-budget">
+          <label for="budget">Total budget (₹)</label>
+          <input type="number" id="budget" min="1" placeholder="e.g. 80000">
+          <div class="error">Enter a budget greater than 0.</div>
         </div>
         <div class="hint">Covers transport, stay, and activities for the whole trip.</div>
       </div>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint — Every great journey starts with a waypoint</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="wide-shell">
+
+  <!-- ── Nav: trimmed per v1 design spec — brand + single CTA, nothing else ── -->
+  <nav class="landing-nav">
+    <span class="wordmark" style="margin:0;">waypoint</span>
+    <a href="form.html" class="btn-pill btn-nav-cta">
+      Plan a trip
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <header class="hero">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Multi-agent AI trip planning
+    </div>
+    <h1>Every great journey<br>starts with a <span class="hero-accent">waypoint</span>.</h1>
+    <p class="hero-sub">
+      Tell us where you're headed in India, and five AI agents plan the
+      routes, stays, and day-by-day schedule — then you refine it in a
+      quick chat before it's locked in.
+    </p>
+    <div class="hero-actions">
+      <a href="form.html" class="btn-pill">
+        Plan a trip
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+    <p class="hero-note">Domestic trips across India · flights, trains, hotels & activities</p>
+  </header>
+
+  <!-- ── How it works ── -->
+  <section class="section reveal">
+    <div class="section-head">
+      <h2>How it works</h2>
+      <p>Four steps from a rough idea to a finished itinerary.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Fill in the basics</h3>
+        <p>Destination, dates, travelers, budget, and how you like to travel.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>Agents plan it out</h3>
+        <p>Transport, hotels, activities and weather are checked in parallel, then weighed against your budget.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Review & refine</h3>
+        <p>See the day-by-day plan and ask for changes in plain language — "make it cheaper," "less walking on day 2."</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <h3>Lock it in</h3>
+        <p>Approve when it looks right and get a final itinerary you can download or share.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Agents (magenta = agent-facing, per design system) ── -->
+  <section class="section reveal">
+    <div class="section-head">
+      <h2>Five agents, one trip</h2>
+      <p>Each one owns a specific part of the plan.</p>
+    </div>
+    <div class="agents-grid">
+      <div class="agent-card">
+        <span class="agent-dot"></span>
+        <h3>Concierge</h3>
+        <p>Reads your form and makes sure the trip actually makes sense before anything else runs.</p>
+      </div>
+      <div class="agent-card">
+        <span class="agent-dot"></span>
+        <h3>Planner</h3>
+        <p>Decides what to search and in what order, based on your budget and transport preference.</p>
+      </div>
+      <div class="agent-card">
+        <span class="agent-dot"></span>
+        <h3>Budget</h3>
+        <p>Checks the plan against what you're willing to spend and flags overruns with real alternatives.</p>
+      </div>
+      <div class="agent-card">
+        <span class="agent-dot"></span>
+        <h3>Itinerary Builder</h3>
+        <p>Weaves transport, stays, activities and weather into one coherent day-by-day schedule.</p>
+      </div>
+      <div class="agent-card">
+        <span class="agent-dot"></span>
+        <h3>Critic</h3>
+        <p>Reads your edit requests during review and figures out exactly what needs to be redone.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Example itinerary — reuses the real day-card component so this looks
+       identical to the actual review/final pages, not a mocked-up preview ── -->
+  <section class="section reveal">
+    <div class="section-head">
+      <h2>What you get</h2>
+      <p>A sample of the kind of itinerary Waypoint builds — Vapi to Ahmedabad, by train.</p>
+    </div>
+
+    <div class="example-wrap">
+      <div class="day-card">
+        <h3>Day 1</h3>
+        <div class="day-date">10 Sept 2026</div>
+        <div class="event-row">
+          <div class="event-tag transport">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            <span>Transport</span>
+          </div>
+          <div class="event-body">
+            <div class="event-time">08:40</div>
+            <div class="event-title">Train from Vapi to Ahmedabad</div>
+            <div class="event-details">Arrives 14:10 · seat confirmed</div>
+          </div>
+        </div>
+        <div class="event-row">
+          <div class="event-tag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 18h18M7 10V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4"/></svg>
+            <span>Check-in</span>
+          </div>
+          <div class="event-body">
+            <div class="event-time">15:00</div>
+            <div class="event-title">Check in near Law Garden</div>
+          </div>
+        </div>
+        <div class="event-row">
+          <div class="event-tag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9 16.5 13.5 18.5 21 12 16.5 5.5 21 7.5 13.5 2 9 9 9 12 2"/></svg>
+            <span>Activity</span>
+          </div>
+          <div class="event-body">
+            <div class="event-time">Evening</div>
+            <div class="event-title">Manek Chowk night food market</div>
+          </div>
+        </div>
+      </div>
+      <div class="example-fade"></div>
+    </div>
+    <p class="example-caption">Illustrative example — your actual itinerary is built live from real search results.</p>
+  </section>
+
+  <!-- ── Closing CTA ── -->
+  <section class="closing-cta reveal">
+    <h2>Ready to plan your next trip?</h2>
+    <a href="form.html" class="btn-pill">
+      Plan a trip
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
+  </section>
+
+  <footer class="landing-footer">
+    <span class="wordmark" style="margin:0;">waypoint</span>
+    <p>Every great journey starts with a waypoint.</p>
+    <p class="footer-meta">Domestic trips across India · v1</p>
+  </footer>
+
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/landing.js"></script>
+</body>
+</html>

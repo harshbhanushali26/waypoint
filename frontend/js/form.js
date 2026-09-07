@@ -71,7 +71,7 @@ function collectState() {
     end_date: document.getElementById('endDate').value,
     num_travelers: parseInt(document.getElementById('travelers').value, 10),
     budget: parseFloat(document.getElementById('budget').value),
-    currency: document.getElementById('currency').value,
+    currency: 'INR', // Waypoint is India-only, domestic trips for v1 — no picker needed
     interests: interests,
     transport_pref: document.getElementById('transportPref').value,
     wants_rental_car: carRental,
@@ -91,7 +91,7 @@ function goToReview() {
   document.getElementById('rv-transport').textContent = s.transport_pref;
   document.getElementById('rv-rental').textContent = s.wants_rental_car ? 'Yes' : 'No';
   document.getElementById('rv-pace').textContent = s.pace;
-  document.getElementById('rv-budget').textContent = `${s.currency} ${s.budget.toLocaleString()}`;
+  document.getElementById('rv-budget').textContent = `₹${s.budget.toLocaleString('en-IN')}`;
 
   document.getElementById('formView').style.display = 'none';
   document.getElementById('reviewView').style.display = 'block';
