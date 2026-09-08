@@ -20,6 +20,7 @@ class FlightsAPIError(Exception):
     """Raised when SerpApi returns an explicit error or no usable flight data."""
 
 
+# ── Fetch ────────────────────────────────────────────────────────────────
 
 @retry(
     stop=stop_after_attempt(3),
@@ -42,6 +43,7 @@ def _fetch_flights(params: dict) -> list[dict]:
     return all_flights
 
 
+# ── Normalize ────────────────────────────────────────────────────────────
 
 def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
     flight_segments = raw.get("flights", [])
@@ -78,6 +80,7 @@ def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
     }
 
 
+# ── Node entry point ─────────────────────────────────────────────────────
 
 def search_flights(state: dict) -> dict:
     """

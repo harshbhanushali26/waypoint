@@ -12,8 +12,9 @@ never silently substitutes dummy data. This keeps "real data" and
 "degraded" visibly distinguishable in state.
 """
 
-import httpx
 from datetime import date
+
+import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 
@@ -24,6 +25,9 @@ MAX_FORECAST_DAYS_OUT = 7
 
 class WeatherAPIError(Exception):
     """Raised when Open-Meteo returns no usable weather data."""
+
+
+# ── Geocoding ────────────────────────────────────────────────────────────
 
 @retry(
     stop=stop_after_attempt(3),
@@ -47,6 +51,8 @@ def _geo_code(city: str) -> tuple[float, float]:
     first = results[0]
     return float(first["latitude"]), float(first["longitude"])
 
+
+# ── Forecast fetch ───────────────────────────────────────────────────────
 
 @retry(
     stop=stop_after_attempt(3),
@@ -75,6 +81,8 @@ def _fetch_forecast(lat: float, lon: float, start_date: str, end_date: str) -> d
 
     return daily
 
+
+# ── WMO code mapping & normalization ─────────────────────────────────────
 
 WMO_CODE_MAP: dict[int, str] = {
     0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
@@ -112,6 +120,8 @@ def _normalize_forecast(daily: dict) -> list[dict]:
 
     return result
 
+
+# ── Node entry point ─────────────────────────────────────────────────────
 
 def get_weather(state: dict) -> dict:
     """

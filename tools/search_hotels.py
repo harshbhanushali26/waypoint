@@ -17,6 +17,8 @@ class HotelsAPIError(Exception):
     """Raised when SerpApi returns an explicit error or no usable hotel data."""
 
 
+# ── Fetch ────────────────────────────────────────────────────────────────
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -37,6 +39,8 @@ def _fetch_hotels(params: dict) -> list[dict]:
 
     return properties
 
+
+# ── Normalize ────────────────────────────────────────────────────────────
 
 def _normalize_hotel(raw: dict, currency: str) -> dict:
     rate = raw.get("rate_per_night", {})
@@ -80,6 +84,8 @@ def _normalize_hotel(raw: dict, currency: str) -> dict:
         "serpapi_details_link": raw.get("serpapi_property_details_link", ""),
     }
 
+
+# ── Node entry point ─────────────────────────────────────────────────────
 
 def search_hotels(state: dict) -> dict:
     """

@@ -2,8 +2,8 @@
 search_trains — free-API stage (RailRadar API)
 
 Mechanical tool node: no LLM calls. Two-step flow:
-  1. GET /v1/trains/between/{from}/{to}?byCity=true — trains + schedule.
-  2. GET /v1/trains/{number}/fare — fare for top N trains.
+    1. GET /v1/trains/between/{from}/{to}?byCity=true — trains + schedule.
+    2. GET /v1/trains/{number}/fare — fare for top N trains.
 
 Station resolution: static dict in _constants.py (zero API cost).
 If a city isn't in the static dict, falls back to autocomplete API (1 call, cached).
@@ -101,7 +101,7 @@ def _resolve_station(query: str) -> str:
     """
     Resolve a city name to a station code.
     1. Strip any "Country" suffix ("Vapi, India" -> "Vapi") since RailRadar
-       and our static dict both key on bare city names.
+        and our static dict both key on bare city names.
     2. Try static dict (zero API cost).
     3. If not found, call autocomplete API (1 call), cache the result.
     """
@@ -224,7 +224,7 @@ def _fetch_fare_request(
 
     404 → FareNotFoundError (not retried — station/class mismatch is permanent).
     429 → RateLimitError (not retried — quota window, retrying immediately
-          just fails again).
+            just fails again).
     5xx/network → retried by tenacity (transient).
     """
     _throttle()
@@ -448,10 +448,6 @@ def _search_direction(
         ))
 
     return normalized, rate_limited
-
-
-
-
 
 
 def search_trains(state: dict) -> dict:

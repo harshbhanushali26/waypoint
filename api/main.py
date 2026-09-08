@@ -4,11 +4,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from db.checkpointer import get_checkpointer
 from graph.build_graph import build_graph
-from api.routers import trips  # will contain create_trip, status, review, itinerary
+from api.routers import trips  
 
 
 @asynccontextmanager

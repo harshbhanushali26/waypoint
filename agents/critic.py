@@ -1,4 +1,3 @@
-import json
 import logging
 
 from langgraph.types import Command
@@ -32,26 +31,26 @@ class InvalidCriticTargetError(Exception):
 
 def critic_node(state: TripState) -> Command:
     # Latest user turn during human_review
-
     user_request = state["messages"][-1].content
+    user_message = build_critic_user_message(user_request)
 
-    # structured_llm = llm.with_structured_output(CriticAnalysis)
     structured_llm = get_structured_llm(CriticAnalysis)
 
-    print("--- Critic ---")
-    print(len(CRITIC_SYSTEM_PROMPT))
-    print(len(build_critic_user_message(user_request)))
+    logger.debug(
+        "Critic input: system_prompt_len=%d user_msg_len=%d",
+        len(CRITIC_SYSTEM_PROMPT), len(user_message),
+    )
 
     response = structured_llm.invoke(
         [
             {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
-            {"role": "user", "content": build_critic_user_message(user_request)},
+            {"role": "user", "content": user_message},
         ],
         max_tokens=AGENT_MAX_TOKENS["critic"],
     )
 
     critic_analysis = response.model_dump()
-    print(f"[Critic] : {critic_analysis}")
+    logger.info("Critic analysis: %s", critic_analysis)
     target = critic_analysis["target"]
 
     invalid = [t for t in target if t not in VALID_TARGETS]

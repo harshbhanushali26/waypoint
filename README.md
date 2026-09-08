@@ -175,7 +175,7 @@ and landed back at `awaiting_review` with an updated itinerary.
 
 ## 🔜 Remaining Work
 
-- 🎨 Visual polish pass on the frontend (in progress)
+- ⚒️ Refining and Refactoring the waypoint system
 - 🚌 `search_buses` real API integration (stub remains; dummy data returns hardcoded dates regardless of trip dates)
 - 🚗 `search_cars` real API integration (stub remains)
 - 🔌 MCP tools stage

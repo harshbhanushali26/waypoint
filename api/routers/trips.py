@@ -13,6 +13,8 @@ from langgraph.types import Command
 
 router = APIRouter()
 
+# ───────────────────────── request / response models ─────────────────────────
+
 class TripCreateRequest(BaseModel):
     destination: str
     origin_city: str
@@ -55,6 +57,12 @@ class ReviewRequest(BaseModel):
 class ReviewResponse(BaseModel):
     trip_id: str
     accepted: bool
+
+
+# ───────────────────────── itinerary enrichment ─────────────────────────
+# Mechanical join of the LLM-trimmed chosen_hotel / chosen_transport /
+# chosen_car objects back against the untrimmed state so the UI can show
+# fields (images, amenities, OTA prices) the prompt never needed.
 
 
 def _index_by_id(objects: list[dict], id_field: str) -> dict[str, dict]:
@@ -116,9 +124,26 @@ def _enrich_itinerary(itinerary: dict, state: dict) -> dict:
     return enriched
 
 
+# ───────────────────────── graph invocation helpers ─────────────────────────
+# Centralized so the checkpoint config shape can't drift between call sites -
+# thread_id must be paired with checkpoint_ns (even empty) or aput/aget
+# raises KeyError deep inside the checkpointer.
+ 
+def _graph_config(trip_id: str) -> dict:
+    return {"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}
+
+
 async def _run_graph(graph, trip_id: str, initial_state: dict):
     config = {"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}
     await graph.ainvoke(initial_state, config=config)
+
+
+async def _resume_graph(graph, trip_id: str, resume_payload: dict):
+    config = _graph_config(trip_id)
+    await graph.ainvoke(Command(resume=resume_payload), config=config)
+
+
+# ───────────────────────── routes ─────────────────────────
 
 
 @router.post("", response_model=TripCreateResponse)
@@ -127,21 +152,20 @@ async def create_trip(
     background_tasks: BackgroundTasks,
     request: Request,
 ):
-
     trip_id = str(uuid4())
 
     async with async_session_factory() as session:
         trip = Trip(
-        trip_id=trip_id,
-        destination=payload.destination,
-        origin_city=payload.origin_city,
-        start_date=payload.start_date.isoformat(),
-        end_date=payload.end_date.isoformat(),
-        num_travelers=payload.num_travelers,
-        budget=payload.budget,
-        currency=payload.currency,
-        status="created",
-    )
+            trip_id=trip_id,
+            destination=payload.destination,
+            origin_city=payload.origin_city,
+            start_date=payload.start_date.isoformat(),
+            end_date=payload.end_date.isoformat(),
+            num_travelers=payload.num_travelers,
+            budget=payload.budget,
+            currency=payload.currency,
+            status="created",
+        )
         session.add(trip)
         await session.commit()
 
@@ -170,10 +194,8 @@ async def create_trip(
 
 @router.get("/{trip_id}/status", response_model=TripStatusResponse)
 async def get_trip_status(trip_id: str, request: Request):
-    
-
     graph = request.app.state.graph
-    config = {"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}
+    config = _graph_config(trip_id)
 
     snapshot = await graph.aget_state(config)
 
@@ -192,9 +214,8 @@ async def get_trip_status(trip_id: str, request: Request):
 
 @router.get("/{trip_id}/itinerary", response_model=TripItineraryResponse)
 async def get_trip_itinerary(trip_id: str, request: Request):
-
     graph = request.app.state.graph
-    config = {"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}
+    config = _graph_config(trip_id)
 
     snapshot = await graph.aget_state(config)
 
@@ -219,11 +240,6 @@ async def get_trip_itinerary(trip_id: str, request: Request):
     )
 
 
-async def _resume_graph(graph, trip_id: str, resume_payload: dict):
-    config = {"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}
-    await graph.ainvoke(Command(resume=resume_payload), config=config)
-
-
 @router.post("/{trip_id}/review", response_model=ReviewResponse)
 async def submit_review(
     trip_id: str,
@@ -231,9 +247,8 @@ async def submit_review(
     background_tasks: BackgroundTasks,
     request: Request,
 ):
-
     graph = request.app.state.graph
-    config = {"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}
+    config = _graph_config(trip_id)
 
     # Confirm the trip actually exists and is genuinely paused before
     # accepting a resume - resuming a trip_id with no pending interrupt

@@ -103,16 +103,21 @@ def budget_node(state: TripState) -> dict:
         "overage_amount": overage_amount,
     }
 
+    user_message = build_budget_user_message(state_slice)
     logger.debug(
         "Budget pre-LLM: transport=%s@%.2f hotel=%.2f activities=%.2f total=%.2f budget=%.2f",
         transport_mode, transport_cost, hotel_cost, activities_cost,
         estimated_total, budget,
     )
+    logger.debug(
+        "Budget input: system_prompt_len=%d user_msg_len=%d",
+        len(BUDGET_SYSTEM_PROMPT), len(user_message),
+    )
 
     response = structured_llm.invoke(
         [
             {"role": "system", "content": BUDGET_SYSTEM_PROMPT},
-            {"role": "user", "content": build_budget_user_message(state_slice)},
+            {"role": "user", "content": user_message},
         ],
         max_tokens=AGENT_MAX_TOKENS["budget"],
     )

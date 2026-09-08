@@ -1,6 +1,4 @@
-import json
 import logging
-
 
 from prompts.planner_prompt import PLANNER_SYSTEM_PROMPT, build_planner_user_message
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
@@ -10,36 +8,34 @@ from graph.state import TripState
 logger = logging.getLogger(__name__)
 
 
-
 def planner_node(state: TripState) -> dict:
     normalized_input = state["normalized_input"]
+    user_message = build_planner_user_message(normalized_input)
 
-    # structured_llm = llm.with_structured_output(SearchPlan)
     structured_llm = get_structured_llm(SearchPlan)
 
-    print("--- Planner ---")
-    print(len(PLANNER_SYSTEM_PROMPT))
-    print(len(build_planner_user_message(normalized_input)))
+    logger.debug(
+        "Planner input: system_prompt_len=%d user_msg_len=%d",
+        len(PLANNER_SYSTEM_PROMPT), len(user_message),
+    )
 
     response = structured_llm.invoke(
         [
             {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
-            {"role": "user", "content": build_planner_user_message(normalized_input)},
+            {"role": "user", "content": user_message},
         ],
         max_tokens=AGENT_MAX_TOKENS["planner"],
     )
 
     search_plan = response.model_dump()
-    print(f"[Planner] search_plan: {search_plan}")
+    logger.info("Planner search_plan: %s", search_plan)
 
     # Cross-field constraint the schema can't express: strict:true guarantees
     # each field's shape individually, not that transport_priority is a
     # subset of transport_modes. Repair rather than trust or silently drop.
-
     valid_modes = set(search_plan["transport_modes"])
     priority = search_plan["transport_priority"]
     filtered_priority = [m for m in priority if m in valid_modes]
-
 
     if filtered_priority != priority:
         logger.warning(

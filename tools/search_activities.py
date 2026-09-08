@@ -14,6 +14,8 @@ class ActivitiesAPIError(Exception):
     """Raised when Tavily returns no usable activity data."""
 
 
+# ── Fetch ────────────────────────────────────────────────────────────────
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -27,21 +29,22 @@ def _fetch_activities(query: str, use_key: bool = False) -> list[dict]:
         client = TavilyClient(api_key=settings.tavily_api_key)
         response = client.search(query, max_results=10, search_depth="advanced")
         results = response.get("results", [])
-        if not results:
-            raise ActivitiesAPIError("Tavily returned no results")
-        return results
+    else:
+        response = httpx.post(
+                "https://api.tavily.com/search",
+                json={"query": query, "max_results": 10, "search_depth": "advanced"},
+                headers={"X-Tavily-Access-Mode": "keyless"},
+                timeout=30,
+        )
+        response.raise_for_status()
+        results = response.json().get("results", [])
 
-    response = httpx.post(
-        "https://api.tavily.com/search",
-        json={"query": query, "max_results": 10, "search_depth": "advanced"},
-        headers={"X-Tavily-Access-Mode": "keyless"},
-        timeout=30,
-    )
-    response.raise_for_status()
-    results = response.json().get("results", [])
     if not results:
         raise ActivitiesAPIError("Tavily returned no results")
     return results
+
+
+# ── Normalize ────────────────────────────────────────────────────────────
 
 
 def _normalize_activity(raw: dict) -> dict:
@@ -51,6 +54,7 @@ def _normalize_activity(raw: dict) -> dict:
         "url": raw.get("url", ""),
     }
 
+# ── Node entry point ─────────────────────────────────────────────────────
 
 def search_activities(state: dict) -> dict:
     """
@@ -65,7 +69,14 @@ def search_activities(state: dict) -> dict:
         return {"activities": [], "activities_note": "Missing destination."}
 
     interest_str = ", ".join(interests) if interests else "things to do"
-    date_context = f" in {start_date} to {end_date}" if start_date and end_date else (f" in {start_date}" if start_date else "")
+
+    if start_date and end_date:
+        date_context = f" in {start_date} to {end_date}"
+    elif start_date:
+        date_context = f" in {start_date}"
+    else:
+        date_context = ""
+
     query = f"best {interest_str} in {destination}{date_context} India"
 
     try:
