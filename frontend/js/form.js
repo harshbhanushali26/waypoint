@@ -44,7 +44,21 @@ function validateAll() {
   if (startInvalid) { ok = false; firstInvalid = firstInvalid || 'f-start'; }
 
   const endDate = end ? new Date(end) : null;
-  const endInvalid = !end || !startDate || endDate <= startDate;
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const errEnd = document.querySelector('#f-end .error');
+
+  let endInvalid = false;
+  if (!end || !startDate) {
+    endInvalid = true;
+    errEnd.textContent = 'End date must be after the start date.';
+  } else if (endDate <= startDate) {
+    endInvalid = true;
+    errEnd.textContent = 'End date must be after the start date.';
+  } else if ((endDate - startDate) / oneDayMs > 6) {
+    endInvalid = true;
+    errEnd.textContent = 'Trips can be at most 7 days for now.';
+  }
+
   setInvalid('f-end', endInvalid);
   if (endInvalid) { ok = false; firstInvalid = firstInvalid || 'f-end'; }
 

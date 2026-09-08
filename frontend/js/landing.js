@@ -18,3 +18,27 @@ if ('IntersectionObserver' in window && revealEls.length) {
   // No IntersectionObserver support — just show everything immediately.
   revealEls.forEach(el => el.classList.add('in-view'));
 }
+
+document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+
+const dayTabs = document.querySelectorAll('.day-tab');
+const dayPanels = document.querySelectorAll('.voyage-day-panel');
+
+if (dayTabs.length) {
+  dayTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const day = tab.dataset.day;
+
+      // toggle active tab
+      dayTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      // toggle active panel
+      dayPanels.forEach(p => {
+        p.classList.toggle('active', p.dataset.panel === day);
+      });
+    });
+  });
+}
+

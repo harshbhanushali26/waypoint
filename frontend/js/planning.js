@@ -19,6 +19,23 @@ function activeStepIndexForStatus(status) {
   }
 }
 
+const PHASE_LABEL_IDS = ['understanding', 'strategy', 'searching', 'building'];
+
+function updateSynthesisProgress(activeIndex) {
+  const pct = Math.min(100, Math.round((activeIndex / STEP_ORDER.length) * 100));
+  document.getElementById('synthesisPct').textContent = `${pct}%`;
+  document.getElementById('phaseBadge').textContent =
+    `Phase ${Math.min(activeIndex + 1, STEP_ORDER.length)} of ${STEP_ORDER.length}`;
+  document.getElementById('synthesisBarFill').style.width = `${pct}%`;
+
+  PHASE_LABEL_IDS.forEach((id, i) => {
+    const el = document.getElementById(`label-${id}`);
+    el.classList.remove('active-label', 'done-label');
+    if (i < activeIndex) el.classList.add('done-label');
+    else if (i === activeIndex) el.classList.add('active-label');
+  });
+}
+
 function renderSteps(status) {
   const activeIndex = activeStepIndexForStatus(status);
   STEP_ORDER.forEach((stepId, i) => {
@@ -28,6 +45,7 @@ function renderSteps(status) {
     else if (i === activeIndex) el.classList.add('active');
     else el.classList.add('pending');
   });
+  updateSynthesisProgress(activeIndex); // ← only new line added here
 }
 
 function showSuccessAndRedirect(tripId) {
