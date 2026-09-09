@@ -1,3 +1,11 @@
+"""
+core/config.py
+
+Central Settings object (pydantic-settings) for all env-driven config —
+Postgres pieces, LLM/tool API keys. database_url is derived, not read
+directly, so the driver string lives in one place.
+"""
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

@@ -1,3 +1,6 @@
+"""budget_node — sums cheapest transport + hotel + activities cost against
+budget. All numeric fields deterministic; LLM only supplies suggestions."""
+
 import logging
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
@@ -75,6 +78,8 @@ def _activities_cost(state: dict) -> float:
 
 
 def budget_node(state: TripState) -> dict:
+    """Computes budget_analysis (deterministic) plus LLM-generated
+    suggestions when over budget."""
     budget = state["normalized_input"]["budget"]
 
     transport_mode, transport_cost = _cheapest_transport(state)

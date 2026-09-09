@@ -26,6 +26,7 @@ class HotelsAPIError(Exception):
     reraise=True,
 )
 def _fetch_hotels(params: dict) -> list[dict]:
+    """Calls SerpApi Google Hotels, returns the raw properties list."""
     response = httpx.get(SERPAPI_BASE, params=params, timeout=30)
     response.raise_for_status()
     data = response.json()
@@ -43,6 +44,7 @@ def _fetch_hotels(params: dict) -> list[dict]:
 # ── Normalize ────────────────────────────────────────────────────────────
 
 def _normalize_hotel(raw: dict, currency: str) -> dict:
+    """Converts one SerpApi hotel property into Waypoint's flat hotel dict."""
     rate = raw.get("rate_per_night", {})
     total = raw.get("total_rate", {})
     coords = raw.get("gps_coordinates", {})

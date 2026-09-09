@@ -29,6 +29,7 @@ class FlightsAPIError(Exception):
     reraise=True,
 )
 def _fetch_flights(params: dict) -> list[dict]:
+    """Calls SerpApi Google Flights, returns combined best+other flights."""
     response = httpx.get(SERPAPI_BASE, params=params, timeout=30)
     response.raise_for_status()
     data = response.json()
@@ -46,6 +47,7 @@ def _fetch_flights(params: dict) -> list[dict]:
 # ── Normalize ────────────────────────────────────────────────────────────
 
 def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
+    """Converts one SerpApi flight object into Waypoint's flat flight dict."""
     flight_segments = raw.get("flights", [])
     first_segment = flight_segments[0] if flight_segments else {}
     last_segment = flight_segments[-1] if flight_segments else {}

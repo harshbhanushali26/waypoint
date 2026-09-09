@@ -36,6 +36,7 @@ class WeatherAPIError(Exception):
     reraise=True
 )
 def _geo_code(city: str) -> tuple[float, float]:
+    """Resolves a city name to (latitude, longitude) via Open-Meteo geocoding."""
     response = httpx.get(
         OPEN_METEO_GEOCODING_URL,
         params={"name": f"{city}, India", "count": 1, "language": "en", "format": "json"},
@@ -61,6 +62,7 @@ def _geo_code(city: str) -> tuple[float, float]:
     reraise=True,
 )
 def _fetch_forecast(lat: float, lon: float, start_date: str, end_date: str) -> dict:
+    """Fetches raw daily forecast fields from Open-Meteo for the date range."""
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -99,10 +101,12 @@ WMO_CODE_MAP: dict[int, str] = {
 
 
 def _wmo_to_condition(code: int) -> str:
+    """Maps a WMO weather code to a human-readable condition string."""
     return WMO_CODE_MAP.get(code, f"Unknown (code {code})")
 
 
 def _normalize_forecast(daily: dict) -> list[dict]:
+    """Converts Open-Meteo's parallel-array daily response into one dict per day."""
     times = daily.get("time", [])
     codes = daily.get("weather_code", [])
     t_max = daily.get("temperature_2m_max", [])

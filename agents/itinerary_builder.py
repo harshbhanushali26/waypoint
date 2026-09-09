@@ -1,11 +1,14 @@
+"""itinerary_builder_node — composes the day-by-day itinerary. Runs in BUILD
+mode (first pass) or REVISE mode (Critic routed back with an edit request)."""
+
 import logging
+from datetime import date, timedelta
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
 from prompts.itinerary_builder_prompt import ITINERARY_BUILDER_SYSTEM_PROMPT, build_itinerary_builder_user_message
 from prompts.itinerary_reviser_prompt import ITINERARY_REVISER_SYSTEM_PROMPT, build_itinerary_reviser_user_message
 from models.schemas import Itinerary
 from graph.state import TripState
-from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,8 @@ def _filter_priced_trains(trains: list[dict]) -> list[dict]:
 
 
 def itinerary_builder_node(state: TripState) -> dict:
+    """Builds or revises the itinerary depending on whether
+    critic_analysis is present in state."""
     normalized_input = state["normalized_input"]
 
     trip_dates = _compute_trip_dates(
@@ -138,38 +143,40 @@ def itinerary_builder_node(state: TripState) -> dict:
             "trip_dates": trip_dates,
         }
 
-        user_revise_message = build_itinerary_reviser_user_message(revise_slice)
         structured_llm = get_structured_llm(Itinerary, include_raw=True)
+        revise_user_message = build_itinerary_reviser_user_message(revise_slice)
 
         logger.debug(
-            "Itinerary revise mode input: system_prompt_len=%d user_msg_len=%d no_of_days=%d",
-            len(ITINERARY_REVISER_SYSTEM_PROMPT), len(user_revise_message), len(trip_dates)
+            "Itinerary reviser input: system_prompt_len=%d user_msg_len=%d days=%d",
+            len(ITINERARY_REVISER_SYSTEM_PROMPT), len(revise_user_message), len(trip_dates),
         )
 
         response = structured_llm.invoke(
             [
                 {"role": "system", "content": ITINERARY_REVISER_SYSTEM_PROMPT},
-                {"role": "user", "content": user_revise_message},
+                {"role": "user", "content": revise_user_message},
             ],
             max_tokens=AGENT_MAX_TOKENS["itinerary_builder"],
         )
 
-        logger.debug("Token usage revise mode: %s", response["raw"].usage_metadata)
+        logger.debug("Itinerary reviser token usage: %s", response["raw"].usage_metadata)
 
         if response["parsed"] is None:
-            logger.error("Parsing failed, raw content: %s", response["raw"].content)
-            raise RuntimeError("Itinerary revision parsing failed - see raw content and token usage above")
+            logger.error(
+                "Itinerary revision parsing failed. raw_content=%r usage=%s",
+                response["raw"].content, response["raw"].usage_metadata,
+            )
+            raise RuntimeError("Itinerary revision parsing failed - see logged raw content above")
 
         itinerary = response["parsed"].model_dump()
         itinerary["data_gaps"] = state["itinerary"].get("data_gaps", [])
-        logger.info("Itinerary revise itinerary: %s", itinerary)
+        logger.info("Itinerary revised: %s", itinerary)
 
         return {"itinerary": itinerary, "status": "awaiting_review"}
 
     # --- BUILD MODE: first pass, compose from raw search results ---
 
     search_plan = state["search_plan"]
-
     transport_modes = set(search_plan.get("transport_modes", []))
 
     flights = state.get("flights", []) if "flights" in transport_modes else []
@@ -186,7 +193,7 @@ def itinerary_builder_node(state: TripState) -> dict:
     buses = _trim(buses, _BUS_FIELDS)
     cars = _trim(cars, _CAR_FIELDS)
     hotels = _trim(hotels, _HOTEL_FIELDS)
-    activities = _trim(activities, _ACTIVITY_FIELDS) 
+    activities = _trim(activities, _ACTIVITY_FIELDS)
 
     hotels = hotels[:3]
     activities = activities[:8]
@@ -219,32 +226,34 @@ def itinerary_builder_node(state: TripState) -> dict:
         "wants_rental_car": normalized_input["wants_rental_car"],
     }
 
-    logger.info("Itinerary data input: %s", state_slice)
-
     structured_llm = get_structured_llm(Itinerary, include_raw=True)
+    build_user_message = build_itinerary_builder_user_message(state_slice)
 
-    user_message = build_itinerary_builder_user_message(state_slice)
+    logger.debug("Itinerary builder state_slice: %s", state_slice)
     logger.debug(
-        "Itinerary (build mode) input: system_prompt_len=%d user_msg_len=%d no_of_days=%d",
-        len(ITINERARY_BUILDER_SYSTEM_PROMPT), len(user_message), len(trip_dates),
+        "Itinerary builder input: system_prompt_len=%d user_msg_len=%d days=%d",
+        len(ITINERARY_BUILDER_SYSTEM_PROMPT), len(build_user_message), len(trip_dates),
     )
 
     response = structured_llm.invoke(
         [
             {"role": "system", "content": ITINERARY_BUILDER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": build_user_message},
         ],
         max_tokens=AGENT_MAX_TOKENS["itinerary_builder"],
     )
 
-    logger.debug("Token usage revise mode: %s", response["raw"].usage_metadata)
+    logger.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
 
     if response["parsed"] is None:
-        logger.error("Parsing failed, raw content: %s", response["raw"].content)
-        raise RuntimeError("Itinerary build parsing failed - see raw content and token usage above")
+        logger.error(
+            "Itinerary build parsing failed. raw_content=%r usage=%s",
+            response["raw"].content, response["raw"].usage_metadata,
+        )
+        raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
 
     itinerary = response["parsed"].model_dump()
-    logger.info("Itinerary itinerary: %s", itinerary)
+    logger.info("Itinerary built: %s", itinerary)
 
     itinerary["data_gaps"] = _collect_data_gaps(state, transport_modes)
 

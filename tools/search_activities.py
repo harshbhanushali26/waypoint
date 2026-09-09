@@ -23,6 +23,7 @@ class ActivitiesAPIError(Exception):
     reraise=True,
 )
 def _fetch_activities(query: str, use_key: bool = False) -> list[dict]:
+    """Queries Tavily (keyed client or keyless HTTP fallback), returns raw results."""
     if use_key and settings.tavily_api_key:
         from tavily import TavilyClient
 
@@ -48,6 +49,7 @@ def _fetch_activities(query: str, use_key: bool = False) -> list[dict]:
 
 
 def _normalize_activity(raw: dict) -> dict:
+    """Converts one Tavily result into Waypoint's flat activity dict."""
     return {
         "title": raw.get("title", ""),
         "snippet": raw.get("content", "")[:500],

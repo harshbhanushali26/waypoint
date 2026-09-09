@@ -1,3 +1,6 @@
+"""planner_node — decides what to search and in what priority, based on
+normalized_input and budget. Parameterizes the tool-node fan-out."""
+
 import logging
 
 from prompts.planner_prompt import PLANNER_SYSTEM_PROMPT, build_planner_user_message
@@ -9,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 def planner_node(state: TripState) -> dict:
+    """Builds the SearchPlan and repairs transport_priority to only contain
+    modes present in transport_modes."""
+
     normalized_input = state["normalized_input"]
     user_message = build_planner_user_message(normalized_input)
 

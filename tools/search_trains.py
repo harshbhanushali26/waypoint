@@ -68,6 +68,7 @@ class RateLimitError(Exception):
 
 
 def _headers() -> dict:
+    """Builds the Bearer-auth header for RailRadar requests."""
     return {"Authorization": f"Bearer {settings.railradar_api_key}"}
 
 

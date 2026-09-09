@@ -36,6 +36,7 @@ async def finalize_node(state: dict) -> dict:
     itinerary = state["itinerary"]
 
     async with async_session_factory() as session:  # type -> AsyncSession
+        session: AsyncSession
         session.add(
             Itinerary(
                 trip_id=trip_id,

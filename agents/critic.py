@@ -1,3 +1,6 @@
+"""critic_node — interprets a human_review edit request and routes to the
+node(s) that need to re-run via Command(goto=...)."""
+
 import logging
 
 from langgraph.types import Command
@@ -30,6 +33,8 @@ class InvalidCriticTargetError(Exception):
 
 
 def critic_node(state: TripState) -> Command:
+    """Interprets the latest human_review message, returns a Command
+    routing to the node(s) that need to re-run."""
     # Latest user turn during human_review
     user_request = state["messages"][-1].content
     user_message = build_critic_user_message(user_request)

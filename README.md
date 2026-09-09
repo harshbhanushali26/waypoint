@@ -128,7 +128,6 @@ parallel fan-out.
 | `budget_analysis` | dict | Budget Agent output |
 | `itinerary` | dict | Itinerary Builder Agent output |
 | `critic_analysis` | dict | Critic Agent output — logging only |
-| `data_gaps` | list[dict] | Collected from all tool nodes; surfaced to the Itinerary Builder so the user sees what's missing |
 | `approved` | bool | Drives the `human_review` conditional branch |
 | `messages` | `Annotated[list, add_messages]` | Single source of truth for review-loop chat |
 | `status` | str | Current node name, drives frontend progress UI |
@@ -140,6 +139,7 @@ user flow end to end:
 
 | Page | Purpose |
 |---|---|
+| `landing.html` | Landing page introducing Waypoint and routing users into the trip wizard |
 | `form.html` | 3-card trip wizard (Destination & Dates, Travel Style, Budget) + a review step before submitting |
 | `planning.html` | Polls trip status and shows live graph node progress as a step list |
 | `review.html` | Day-by-day itinerary + chat panel for edits, quick-action chips, approve flow |
@@ -156,28 +156,40 @@ that correctly routed through the Critic to a specific tool node
 (`search_hotels`), re-ran Budget and the Itinerary Builder in revise mode,
 and landed back at `awaiting_review` with an updated itinerary.
 
-## ✅ Current Status
+## ✅ What's Working
 
-- ✅ Environment & tooling (uv, Python 3.12, Docker Postgres)
-- ✅ Database layer (SQLAlchemy models + Alembic migrations, checkpointer tables)
-- ✅ State schema (TripState)
-- ✅ 5 of 7 tool nodes wired to real APIs — SerpApi (flights, hotels), RailRadar (trains), Tavily (activities), Open-Meteo (weather)
-- ✅ Fail-loud error returns on all tool nodes + `data_gaps` collection
-- ✅ Station-resolution fix (country-suffix stripping before dict lookup)
-- ✅ Train pricing filter (`price > 0`) before prompt assembly to prevent 413s
-- ✅ Trip-length cap guard in Concierge before any LLM call
-- ✅ `AGENT_MAX_TOKENS` right-sized based on observed Groq token usage and TPM limits
-- ✅ All 5 reasoning agents + Command-based Critic routing
-- ✅ Graph fully wired (StateGraph, human_review interrupt, checkpointer — approve path, edit-request path, invalid-target error path all tested)
-- ✅ FastAPI layer — `POST /trips`, `GET /trips/{id}/status`, `GET /trips/{id}/itinerary`, `POST /trips/{id}/review` (approve + edit tested against live graph)
-- ✅ Frontend — all 4 pages built and tested end to end against the live backend
-- ✅ Per-tool integration test harnesses and debug scripts under `scripts/`
+The following components have been completed and verified end to end:
 
-## 🔜 Remaining Work
+- **Environment and tooling** — uv, Python 3.12, Docker Postgres
+- **Database layer** — SQLAlchemy models, Alembic migrations, and checkpointer tables
+- **State schema** — `TripState` defined and integrated
+- **Tool node integrations** — 5 of 7 tool nodes wired to real APIs:
+  - SerpApi (flights, hotels)
+  - RailRadar (trains)
+  - Tavily (activities)
+  - Open-Meteo (weather)
+- **Error handling** — fail-loud error returns on all tool nodes with `data_gaps` collection
+- **Station resolution fix** — country-suffix stripping before dictionary lookup
+- **Train pricing filter** — `price > 0` guard before prompt assembly to prevent 413 errors
+- **Trip-length cap guard** — enforced in the Concierge node before any LLM call
+- **Token budget tuning** — `AGENT_MAX_TOKENS` right-sized based on observed Groq token usage and TPM limits
+- **Reasoning agents** — all 5 agents implemented, with Command-based Critic routing
+- **Graph wiring** — `StateGraph` fully wired with human-review interrupt and checkpointer; the approve path, edit-request path, and invalid-target error path have all been tested
+- **FastAPI layer** — endpoints implemented and tested against the live graph:
+  - `POST /trips`
+  - `GET /trips/{id}/status`
+  - `GET /trips/{id}/itinerary`
+  - `POST /trips/{id}/review` (approve and edit flows tested)
+- **Frontend** — all 4 pages built and tested end to end against the live backend
+- **Testing utilities** — per-tool integration test harnesses and debug scripts under `scripts/`
 
-- ⚒️ Refining and Refactoring the waypoint system
-- 🚌 `search_buses` real API integration (stub remains; dummy data returns hardcoded dates regardless of trip dates)
-- 🚗 `search_cars` real API integration (stub remains)
-- 🔌 MCP tools stage
-- 🔄 Substitution-type edits in revise mode (e.g. "cheaper hotel," "swap to train") — needs the reviser to receive a fuller data slice than just the previous itinerary
-- 📝 `search_buses` dummy data needs to be date-aware before it's demo-ready
+## 🔜 Future Work
+
+The following items are outstanding:
+
+- 🪵 **Logging** — structured logging has not yet been implemented across the pipeline
+- 🚌 **`search_buses` real API integration** — currently a stub; the dummy data returns hardcoded dates regardless of the trip dates and needs to be made date-aware before it is demo-ready
+- 🚗 **`search_cars` real API integration** — currently a stub
+- 🔌 **MCP tools stage** — not yet started
+- 🔄 **Substitution-type edits in revise mode** — e.g. "cheaper hotel" or "swap to train"; this requires the reviser to receive a fuller data slice than just the previous itinerary
+- 📝 **Miscellaneous decisions and issues** — several minor open items beyond those listed above
