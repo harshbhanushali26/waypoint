@@ -4,6 +4,7 @@ budget. All numeric fields deterministic; LLM only supplies suggestions."""
 import logging
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
+from core.logging import get_trip_logger
 from prompts.budget_prompt import BUDGET_SYSTEM_PROMPT, build_budget_user_message
 from models.schemas import BudgetAnalysis
 from graph.state import TripState
@@ -82,6 +83,8 @@ def budget_node(state: TripState) -> dict:
     suggestions when over budget."""
     budget = state["normalized_input"]["budget"]
 
+    log = get_trip_logger(logger, state["trip_id"])
+
     transport_mode, transport_cost = _cheapest_transport(state)
     hotel_cost = _cheapest_hotel(state)
     activities_cost = _activities_cost(state)
@@ -109,12 +112,12 @@ def budget_node(state: TripState) -> dict:
     }
 
     user_message = build_budget_user_message(state_slice)
-    logger.debug(
+    log.debug(
         "Budget pre-LLM: transport=%s@%.2f hotel=%.2f activities=%.2f total=%.2f budget=%.2f",
         transport_mode, transport_cost, hotel_cost, activities_cost,
         estimated_total, budget,
     )
-    logger.debug(
+    log.debug(
         "Budget input: system_prompt_len=%d user_msg_len=%d",
         len(BUDGET_SYSTEM_PROMPT), len(user_message),
     )
@@ -138,5 +141,5 @@ def budget_node(state: TripState) -> dict:
         "suggestions": suggestions,
     }
 
-    logger.info("Budget analysis: %s", budget_analysis)
+    log.info("Budget analysis: %s", budget_analysis)
     return {"budget_analysis": budget_analysis, "status": "building_itinerary"}

@@ -25,6 +25,7 @@ Design decisions locked before writing this file (see project memory):
      config={"configurable": {"thread_id": trip_id, "checkpoint_ns": ""}}.
 """
 
+import logging
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -52,6 +53,7 @@ from tools.get_weather import get_weather
 from graph.human_review import human_review_node
 from graph.finalize import finalize_node
 
+logger = logging.getLogger(__name__)
 
 TOOL_NODE_NAMES = [
     "search_flights",
@@ -139,7 +141,9 @@ def build_graph(checkpointer: AsyncPostgresSaver):
 
     graph.add_edge("finalize", END)
 
-    return graph.compile(checkpointer=checkpointer)
+    compiled = graph.compile(checkpointer=checkpointer)
+    logger.info("Waypoint graph compiled: %d nodes", len(graph.nodes))
+    return compiled
 
 
 async def get_compiled_graph(conn_string: str):

@@ -6,6 +6,7 @@ import logging
 from langgraph.types import Command
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
+from core.logging import get_trip_logger
 from prompts.critic_prompt import CRITIC_SYSTEM_PROMPT, build_critic_user_message
 from models.schemas import CriticAnalysis
 from graph.state import TripState
@@ -37,11 +38,13 @@ def critic_node(state: TripState) -> Command:
     routing to the node(s) that need to re-run."""
     # Latest user turn during human_review
     user_request = state["messages"][-1].content
-    user_message = build_critic_user_message(user_request)
 
+    log = get_trip_logger(logger, state["trip_id"])
+
+    user_message = build_critic_user_message(user_request)
     structured_llm = get_structured_llm(CriticAnalysis)
 
-    logger.debug(
+    log.debug(
         "Critic input: system_prompt_len=%d user_msg_len=%d",
         len(CRITIC_SYSTEM_PROMPT), len(user_message),
     )
@@ -55,12 +58,12 @@ def critic_node(state: TripState) -> Command:
     )
 
     critic_analysis = response.model_dump()
-    logger.info("Critic analysis: %s", critic_analysis)
+    log.info("Critic analysis: %s", critic_analysis)
     target = critic_analysis["target"]
 
     invalid = [t for t in target if t not in VALID_TARGETS]
     if invalid:
-        logger.error(
+        log.error(
             "critic_node: invalid target(s) from LLM. invalid=%s "
             "full_target=%s user_request=%r interpretation=%r reasoning=%r",
             invalid, target, user_request,

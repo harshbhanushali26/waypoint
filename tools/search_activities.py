@@ -4,11 +4,16 @@ search_activities — free-API stage (Tavily)
 Mechanical tool node: no LLM calls. Fails loud — no dummy fallback.
 """
 
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import logging
+
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from core.config import settings
 
+from core.logging import get_trip_logger
+
+logger = logging.getLogger(__name__)
 
 class ActivitiesAPIError(Exception):
     """Raised when Tavily returns no usable activity data."""
@@ -62,12 +67,15 @@ def search_activities(state: dict) -> dict:
     """
     Tool node entry point. Fails loud on any problem — no dummy fallback.
     """
+    log = get_trip_logger(logger, state.get("trip_id", "-"))
+
     destination = state.get("destination", "")
     interests = state.get("interests", [])
     start_date = state.get("start_date", "")
     end_date = state.get("end_date", "")
 
     if not destination:
+        log.warning("search_activities: missing destination")
         return {"activities": [], "activities_note": "Missing destination."}
 
     interest_str = ", ".join(interests) if interests else "things to do"
@@ -80,11 +88,15 @@ def search_activities(state: dict) -> dict:
         date_context = ""
 
     query = f"best {interest_str} in {destination}{date_context} India"
+    log.debug("search_activities: query=%r", query)
 
     try:
         use_key = bool(settings.tavily_api_key and settings.tavily_api_key != "YOUR_TAVILY_API_KEY")
         raw_results = _fetch_activities(query, use_key=use_key)
-        return {"activities": [_normalize_activity(r) for r in raw_results]}
+        activities = [_normalize_activity(r) for r in raw_results]
+        log.info("search_activities: found %d activities", len(activities))  # NEW
+        return {"activities": activities}
 
     except Exception as e:
+        log.warning("search_activities: search failed — %s", e, exc_info=True)
         return {"activities": [], "activities_note": f"Activity search failed: {e}"}

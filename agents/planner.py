@@ -5,6 +5,7 @@ import logging
 
 from prompts.planner_prompt import PLANNER_SYSTEM_PROMPT, build_planner_user_message
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
+from core.logging import get_trip_logger
 from models.schemas import SearchPlan
 from graph.state import TripState
 
@@ -16,11 +17,12 @@ def planner_node(state: TripState) -> dict:
     modes present in transport_modes."""
 
     normalized_input = state["normalized_input"]
+    log = get_trip_logger(logger, state["trip_id"])
     user_message = build_planner_user_message(normalized_input)
 
     structured_llm = get_structured_llm(SearchPlan)
 
-    logger.debug(
+    log.debug(
         "Planner input: system_prompt_len=%d user_msg_len=%d",
         len(PLANNER_SYSTEM_PROMPT), len(user_message),
     )
@@ -34,7 +36,7 @@ def planner_node(state: TripState) -> dict:
     )
 
     search_plan = response.model_dump()
-    logger.info("Planner search_plan: %s", search_plan)
+    log.info("Planner search_plan: %s", search_plan)
 
     # Cross-field constraint the schema can't express: strict:true guarantees
     # each field's shape individually, not that transport_priority is a
@@ -44,7 +46,7 @@ def planner_node(state: TripState) -> dict:
     filtered_priority = [m for m in priority if m in valid_modes]
 
     if filtered_priority != priority:
-        logger.warning(
+        log.warning(
             "planner_node: transport_priority contained modes outside "
             "transport_modes. raw=%s valid=%s -> repaired=%s",
             priority, sorted(valid_modes), filtered_priority,

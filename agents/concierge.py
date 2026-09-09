@@ -9,6 +9,7 @@ from datetime import date
 from langgraph.types import interrupt
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
+from core.logging import get_trip_logger
 from prompts.concierge_prompt import CONCIERGE_SYSTEM_PROMPT, build_concierge_user_message
 from prompts.concierge_fallback_prompt import SYSTEM_PROMPT as FALLBACK_SYSTEM_PROMPT, build_concierge_fallback_user_message
 from models.schemas import NormalizedInput, TripContext
@@ -48,13 +49,15 @@ def concierge_node(state: TripState) -> dict:
     attempts = state.get("clarification_attempts", 0)
     raw_form_input = _collect_raw_form_input(state)
 
+    log = get_trip_logger(logger, state["trip_id"])
+
     # ---- Trip-length hard cap (deterministic, no LLM) ----
     start_date_str = raw_form_input["start_date"]
     end_date_str = raw_form_input["end_date"]
 
     while (date.fromisoformat(end_date_str) - date.fromisoformat(start_date_str)).days > MAX_TRIP_DAYS - 1:
         trip_days = (date.fromisoformat(end_date_str) - date.fromisoformat(start_date_str)).days
-        logger.info("Concierge: trip length %d days exceeds cap, interrupting", trip_days)
+        log.info("Concierge: trip length %d days exceeds cap, interrupting", trip_days)
 
         corrected = interrupt(TRIP_LENGTH_MESSAGE)
 
@@ -69,7 +72,7 @@ def concierge_node(state: TripState) -> dict:
 
     # ---- Round 1 ----
     if attempts == 0:
-        logger.debug(
+        log.debug(
             "Concierge round 1 input: system_prompt_len=%d user_msg_len=%d",
             len(CONCIERGE_SYSTEM_PROMPT), len(user_message),
         )
@@ -82,11 +85,11 @@ def concierge_node(state: TripState) -> dict:
             max_tokens=AGENT_MAX_TOKENS["concierge"],
         )
 
-        logger.debug("Concierge round 1 needs_clarification: %s", response.needs_clarification)
+        log.debug("Concierge round 1 needs_clarification: %s", response.needs_clarification)
 
         if not response.needs_clarification:
             trip_context = TripContext(**response.model_dump())
-            logger.info("Concierge normalized_input: %s", trip_context.model_dump())
+            log.info("Concierge normalized_input: %s", trip_context.model_dump())
             return {
                 "normalized_input": trip_context.model_dump(),
                 "start_date": start_date_str,
@@ -94,7 +97,7 @@ def concierge_node(state: TripState) -> dict:
                 "status": "planning",
             }
 
-        logger.info("Concierge clarification_question: %s", response.clarification_question)
+        log.info("Concierge clarification_question: %s", response.clarification_question)
 
         answer = interrupt(response.clarification_question)
 
@@ -105,7 +108,7 @@ def concierge_node(state: TripState) -> dict:
             + f"\nUser's answer: {answer}"
         )
 
-        logger.debug(
+        log.debug(
             "Concierge round 2 input: system_prompt_len=%d user_msg_len=%d",
             len(CONCIERGE_SYSTEM_PROMPT), len(round2_user_message),
         )
@@ -118,11 +121,11 @@ def concierge_node(state: TripState) -> dict:
             max_tokens=AGENT_MAX_TOKENS["concierge"],
         )
 
-        logger.debug("Concierge round 2 needs_clarification: %s", response2.needs_clarification)
+        log.debug("Concierge round 2 needs_clarification: %s", response2.needs_clarification)
 
         if not response2.needs_clarification:
             trip_context = TripContext(**response2.model_dump())
-            logger.info("Concierge round 2 normalized_input: %s", trip_context.model_dump())
+            log.info("Concierge round 2 normalized_input: %s", trip_context.model_dump())
             return {
                 "normalized_input": trip_context.model_dump(),
                 "start_date": start_date_str,
@@ -132,7 +135,7 @@ def concierge_node(state: TripState) -> dict:
             }
 
         # ---- Round 2 still ambiguous -> fallback, no second interrupt ----
-        logger.debug("Concierge fallback input: system_prompt_len=%d", len(FALLBACK_SYSTEM_PROMPT))
+        log.debug("Concierge fallback input: system_prompt_len=%d", len(FALLBACK_SYSTEM_PROMPT))
 
         fallback_response: TripContext = get_structured_llm(TripContext).invoke(
             [
@@ -151,7 +154,7 @@ def concierge_node(state: TripState) -> dict:
             max_tokens=AGENT_MAX_TOKENS["concierge"],
         )
 
-        logger.info("Concierge fallback normalized_input: %s", fallback_response.model_dump())
+        log.info("Concierge fallback normalized_input: %s", fallback_response.model_dump())
 
         return {
             "normalized_input": fallback_response.model_dump(),

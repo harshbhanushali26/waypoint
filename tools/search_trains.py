@@ -25,14 +25,16 @@ unpriced ones stay unpriced with class_code="".
 Fails loud — no dummy fallback.
 """
 
+import logging
 import time
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from core.config import settings
 from tools._constants import resolve_station
+from core.logging import get_trip_logger  
 
-
+logger = logging.getLogger(__name__)
 RAILRADAR_BASE = "https://api.railradar.in/v1"
 
 # Max trains to fetch fares for per direction.
@@ -466,10 +468,14 @@ def search_trains(state: dict) -> dict:
     fail-loud pattern rather than silently returning incomplete data
     with no note key.
     """
+    log = get_trip_logger(logger, state.get("trip_id", "-"))
+
     if "trains" not in state.get("search_plan", {}).get("transport_modes", []):
+        log.debug("search_trains: skipped — not in transport_modes")
         return {"trains": []}
 
     if not settings.railradar_api_key:
+        log.warning("search_trains: RAILRADAR_API_KEY not configured")
         return {"trains": [], "trains_note": "RAILRADAR_API_KEY not configured."}
 
     origin_city = state.get("origin_city", "")
@@ -479,9 +485,11 @@ def search_trains(state: dict) -> dict:
     currency = state.get("currency", "INR")
 
     if not all([origin_city, destination_city, start_date]):
+        log.warning("search_trains: missing origin, destination, or start date")
         return {"trains": [], "trains_note": "Missing origin, destination, or start date."}
 
     try:
+        log.debug("search_trains: outbound %s -> %s on %s", origin_city, destination_city, start_date)
         trains, rate_limited_out = _search_direction(
             from_city=origin_city,
             to_city=destination_city,
@@ -492,6 +500,7 @@ def search_trains(state: dict) -> dict:
 
         rate_limited_ret = False
         if end_date and end_date != start_date:
+            log.debug("search_trains: return %s -> %s on %s", destination_city, origin_city, end_date)
             return_trains, rate_limited_ret = _search_direction(
                 from_city=destination_city,
                 to_city=origin_city,
@@ -501,12 +510,16 @@ def search_trains(state: dict) -> dict:
             )
             trains.extend(return_trains)
 
+        log.info("search_trains: found %d trains total", len(trains))
+
         result = {"trains": trains}
         if rate_limited_out or rate_limited_ret:
+            log.warning("search_trains: rate limited mid-search, partial fare data")
             result["trains_note"] = (
                 "Rate limited mid-search — some trains returned without fare pricing."
             )
         return result
 
     except Exception as e:
+        log.warning("search_trains: search failed — %s", e, exc_info=True)
         return {"trains": [], "trains_note": f"Train search failed: {e}"}

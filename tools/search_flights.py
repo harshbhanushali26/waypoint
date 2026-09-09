@@ -6,13 +6,16 @@ Mechanical tool node: no LLM calls. Fails loud — on any failure returns
 dummy data, so degraded state is always visible in TripState.
 """
 
+import logging
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from core.config import settings
 from tools._constants import resolve_airport
+from core.logging import get_trip_logger
 
 
+logger = logging.getLogger(__name__)
 SERPAPI_BASE = "https://serpapi.com/search"
 
 
@@ -88,11 +91,14 @@ def search_flights(state: dict) -> dict:
     """
     Tool node entry point. Fails loud on any problem — no dummy fallback.
     """
+    log = get_trip_logger(logger, state.get("trip_id", "-"))
 
     if "flights" not in state.get("search_plan", {}).get("transport_modes", []):
+        log.debug("search_flights: skipped — not in transport_modes")
         return {"flights": []}
 
     if not settings.serpapi_flights_key:
+        log.warning("search_flights: SERPAPI_FLIGHTS_KEY not configured")
         return {"flights": [], "flights_note": "SERPAPI_FLIGHTS_KEY not configured."}
 
     origin = resolve_airport(state.get("origin_city", ""))
@@ -103,6 +109,7 @@ def search_flights(state: dict) -> dict:
     currency = state.get("currency", "INR")
 
     if not all([origin, destination, start_date]):
+        log.warning("search_flights: missing origin, destination, or start date")
         return {"flights": [], "flights_note": "Missing origin, destination, or start date."}
 
     try:
@@ -118,15 +125,19 @@ def search_flights(state: dict) -> dict:
             "type": "2",
             "api_key": settings.serpapi_flights_key,
         }
+        log.debug("search_flights: fetching outbound %s -> %s on %s", origin, destination, start_date)
         raw_outbound = _fetch_flights(outbound_params)
         flights = [_normalize_flight(f, "outbound", currency) for f in raw_outbound]
 
         if end_date and end_date != start_date:
             return_params = {**outbound_params, "departure_id": destination, "arrival_id": origin, "outbound_date": end_date}
+            log.debug("search_flights: fetching return %s -> %s on %s", destination, origin, end_date)
             raw_return = _fetch_flights(return_params)
             flights.extend([_normalize_flight(f, "return", currency) for f in raw_return])
 
+        log.info("search_flights: found %d flights total", len(flights))
         return {"flights": flights}
 
     except Exception as e:
+        log.warning("search_flights: search failed — %s", e, exc_info=True)
         return {"flights": [], "flights_note": f"Flight search failed: {e}"}

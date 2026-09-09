@@ -17,9 +17,14 @@ Design decisions this implements (locked before writing):
     never set implicitly as a side effect of anything else.
 """
 
+import logging
+
 from langgraph.types import interrupt
 from langchain_core.messages import HumanMessage
 
+from core.logging import get_trip_logger
+
+logger = logging.getLogger(__name__)
 
 def human_review_node(state: dict) -> dict:
     """
@@ -31,6 +36,11 @@ def human_review_node(state: dict) -> dict:
         {"action": "edit", "message": "<user's edit request>"}
     """
 
+    trip_id = state.get("trip_id", "-")
+    log = get_trip_logger(logger, trip_id)
+
+    log.info("human_review: pausing for user review")
+
     # Pause the graph and shows up what did it get upto now 
     response = interrupt(
         {
@@ -41,22 +51,24 @@ def human_review_node(state: dict) -> dict:
 
     # Gets value after the resume
     action = response.get("action")
+    log.info("human_review: resumed with action=%s", action)
 
     if action == "approve":
         return {"approved": True}
 
     if action == "edit":
         message_text = response.get("message", "")
+        log.debug("human_review: edit message=%r", message_text)
         return {
             "messages": [HumanMessage(content=message_text)],
         }
-
-
+    
     # Defensive: an unrecognized action shape is a bug in whatever called
     # resume, not a case to silently swallow. Fail loudly rather than let
     # the graph proceed with an ambiguous state, same "raise, don't guess"
     # instinct applied to Critic's invalid-target handling in Step 6.
 
+    log.error("human_review: unrecognized resume action=%r", action)
     raise ValueError(
         f"human_review received an unrecognized resume action: {action!r}. "
         f"Expected 'approve' or 'edit'."

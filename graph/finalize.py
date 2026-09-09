@@ -14,6 +14,7 @@ Design decision this implements (locked before writing):
     frontend's progress UI can read.
 """
 
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import update
@@ -22,7 +23,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import async_session_factory
 from db.models import Trip, Itinerary
+from core.logging import get_trip_logger
 
+logger = logging.getLogger(__name__)
 
 async def finalize_node(state: dict) -> dict:
     """
@@ -34,24 +37,36 @@ async def finalize_node(state: dict) -> dict:
 
     trip_id = state["trip_id"]
     itinerary = state["itinerary"]
+    log = get_trip_logger(logger, trip_id)
 
-    async with async_session_factory() as session:  # type -> AsyncSession
-        session: AsyncSession
-        session.add(
-            Itinerary(
-                trip_id=trip_id,
-                itinerary=itinerary,
-                approved_at=datetime.now(timezone.utc),
+    log.info("Finalize: persisting approved itinerary")
+
+    try:
+        async with async_session_factory() as session:
+            session: AsyncSession
+            session.add(
+                Itinerary(
+                    trip_id=trip_id,
+                    itinerary=itinerary,
+                    approved_at=datetime.now(timezone.utc),
+                )
             )
-        )
 
-        await session.execute(
-            update(Trip)
-            .where(Trip.trip_id == trip_id)
-            .values(status="finalized")
-        )
+            await session.execute(
+                update(Trip)
+                .where(Trip.trip_id == trip_id)
+                .values(status="finalized")
+            )
 
-        await session.commit()
+            await session.commit()
+
+        log.info("Finalize: trip marked finalized")  # NEW
+
+    except Exception as e:
+        # A failed commit here means the user's approved itinerary never
+        # actually got saved — this must never fail silently.
+        log.error("Finalize: failed to persist itinerary — %s", e, exc_info=True)  # NEW
+        raise
 
     return {"status": "finalized"}
 

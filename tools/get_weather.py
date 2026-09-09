@@ -12,11 +12,15 @@ never silently substitutes dummy data. This keeps "real data" and
 "degraded" visibly distinguishable in state.
 """
 
+import logging
 from datetime import date
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from core.logging import get_trip_logger
+
+logger = logging.getLogger(__name__)
 
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -133,12 +137,14 @@ def get_weather(state: dict) -> dict:
     Fails loud on any problem — returns {"weather": [], "weather_note": "..."}
     rather than silently substituting dummy data.
     """
+    log = get_trip_logger(logger, state.get("trip_id", "-"))
 
     destination = state.get("destination", "")
     start_date_str = state.get("start_date", "")
     end_date_str = state.get("end_date", "")
 
     if not all([destination, start_date_str, end_date_str]):
+        log.warning("get_weather: missing destination or date range in state")  
         return {"weather": [], "weather_note": "Missing destination or date range."}
 
     try:
@@ -146,6 +152,10 @@ def get_weather(state: dict) -> dict:
         days_out = (start - date.today()).days
         
         if days_out > MAX_FORECAST_DAYS_OUT:
+            log.info(
+                "get_weather: trip is %d days out, beyond %d-day forecast window — skipping",
+                days_out, MAX_FORECAST_DAYS_OUT,
+            )
             return {
                 "weather": [],
                 "weather_note": (
@@ -154,10 +164,18 @@ def get_weather(state: dict) -> dict:
                     f"so no weather data is available yet for this trip."
                 ),
             }
-        
+
+        log.debug("get_weather: geocoding '%s'", destination)
         lat, lon = _geo_code(destination)
+
+        log.debug("get_weather: fetching forecast lat=%s lon=%s", lat, lon)
         daily = _fetch_forecast(lat, lon, start_date_str, end_date_str)
+
+        result = _normalize_forecast(daily)
+        log.info("get_weather: fetched %d days of forecast for %s", len(result), destination)
         return {"weather": _normalize_forecast(daily)}
+
     except Exception as e:
+        log.warning("get_weather: fetch failed — %s", e, exc_info=True)
         return {"weather": [], "weather_note": f"Weather fetch failed: {e}"}
 

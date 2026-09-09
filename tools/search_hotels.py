@@ -4,12 +4,14 @@ search_hotels — free-API stage (SerpApi Google Hotels)
 Mechanical tool node: no LLM calls. Fails loud — no dummy fallback.
 """
 
+import logging
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from core.config import settings
+from core.logging import get_trip_logger
 
-
+logger = logging.getLogger(__name__)
 SERPAPI_BASE = "https://serpapi.com/search"
 
 
@@ -93,7 +95,10 @@ def search_hotels(state: dict) -> dict:
     """
     Tool node entry point. Fails loud on any problem — no dummy fallback.
     """
+    log = get_trip_logger(logger, state.get("trip_id", "-"))
+
     if not settings.serpapi_hotels_key:
+        log.warning("search_hotels: SERPAPI_HOTELS_KEY not configured")
         return {"hotels": [], "hotels_note": "SERPAPI_HOTELS_KEY not configured."}
 
     destination = state.get("destination", "")
@@ -103,6 +108,7 @@ def search_hotels(state: dict) -> dict:
     currency = state.get("currency", "INR")
 
     if not all([destination, check_in, check_out]):
+        log.warning("search_hotels: missing destination or check-in/check-out dates")
         return {"hotels": [], "hotels_note": "Missing destination or check-in/check-out dates."}
 
     try:
@@ -117,6 +123,7 @@ def search_hotels(state: dict) -> dict:
             "gl": "in",
             "api_key": settings.serpapi_hotels_key,
         }
+        log.debug("search_hotels: fetching hotels in %s", destination)
         raw_hotels = _fetch_hotels(params)
         hotels = [_normalize_hotel(h, currency) for h in raw_hotels]
 
@@ -126,7 +133,9 @@ def search_hotels(state: dict) -> dict:
         # builder's top-N cut both see the cheapest hotels first.
         hotels.sort(key=lambda h: h.get("total_price", 0))
 
+        log.info("search_hotels: found %d hotels", len(hotels))
         return {"hotels": hotels}
 
     except Exception as e:
+        log.warning("search_hotels: search failed — %s", e, exc_info=True)
         return {"hotels": [], "hotels_note": f"Hotel search failed: {e}"}   
