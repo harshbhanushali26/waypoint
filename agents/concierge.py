@@ -77,12 +77,11 @@ def concierge_node(state: TripState) -> dict:
             len(CONCIERGE_SYSTEM_PROMPT), len(user_message),
         )
 
-        response: NormalizedInput = get_structured_llm(NormalizedInput).invoke(
+        response: NormalizedInput = get_structured_llm(NormalizedInput, max_tokens=AGENT_MAX_TOKENS["concierge"]).invoke(
             [
                 {"role": "system", "content": CONCIERGE_SYSTEM_PROMPT},
                 {"role": "user", "content": user_message},
             ],
-            max_tokens=AGENT_MAX_TOKENS["concierge"],
         )
 
         log.debug("Concierge round 1 needs_clarification: %s", response.needs_clarification)
@@ -113,12 +112,11 @@ def concierge_node(state: TripState) -> dict:
             len(CONCIERGE_SYSTEM_PROMPT), len(round2_user_message),
         )
 
-        response2: NormalizedInput = get_structured_llm(NormalizedInput).invoke(
+        response2: NormalizedInput = get_structured_llm(NormalizedInput, max_tokens=AGENT_MAX_TOKENS["concierge"]).invoke(
             [
                 {"role": "system", "content": CONCIERGE_SYSTEM_PROMPT},
                 {"role": "user", "content": round2_user_message},
             ],
-            max_tokens=AGENT_MAX_TOKENS["concierge"],
         )
 
         log.debug("Concierge round 2 needs_clarification: %s", response2.needs_clarification)
@@ -137,7 +135,7 @@ def concierge_node(state: TripState) -> dict:
         # ---- Round 2 still ambiguous -> fallback, no second interrupt ----
         log.debug("Concierge fallback input: system_prompt_len=%d", len(FALLBACK_SYSTEM_PROMPT))
 
-        fallback_response: TripContext = get_structured_llm(TripContext).invoke(
+        fallback_response: TripContext = get_structured_llm(TripContext, max_tokens=AGENT_MAX_TOKENS["concierge"]).invoke(
             [
                 {"role": "system", "content": FALLBACK_SYSTEM_PROMPT},
                 {
@@ -151,7 +149,6 @@ def concierge_node(state: TripState) -> dict:
                     ),
                 },
             ],
-            max_tokens=AGENT_MAX_TOKENS["concierge"],
         )
 
         log.info("Concierge fallback normalized_input: %s", fallback_response.model_dump())

@@ -18,60 +18,84 @@ a floor.
 Do this in order:
 
 1. CHOOSE TRANSPORT
-   - Select the actual transport option(s) that get the traveler to and
-     from the destination, informed by transport_priority (the Planner's
-     ordering) and budget_analysis (avoid choices that would blow the
-     budget if a cheaper viable option exists).
-   - Represent transport as a LIST of legs, even for a simple round trip.
-     Each leg is one object with "leg": "outbound" or "return", "mode", and
-     the full set of fields from the matching tool node's object. A round
-     trip is normally two legs of the SAME mode; a mixed-mode trip (fly out,
-     train back) is two legs of DIFFERENT modes — both are handled the same
-     way, just independent leg objects.
-   - A rental car is NEVER part of this list, even if wants_rental_car is
-     true — it is not a point-to-point movement and is handled separately
-     in step 2.
+  - Select the actual transport option(s) that get the traveler to and
+    from the destination, informed by transport_priority (the Planner's
+    ordering) and budget_analysis (avoid choices that would blow the
+    budget if a cheaper viable option exists).
+  - Represent transport as a LIST of legs, even for a simple round trip.
+    Each leg is one object with "leg": "outbound" or "return", "mode", and
+    the full set of fields from the matching tool node's object. A round
+    trip is normally two legs of the SAME mode; a mixed-mode trip (fly out,
+    train back) is two legs of DIFFERENT modes — both are handled the same
+    way, just independent leg objects.
+  - A rental car is NEVER part of this list, even if wants_rental_car is
+    true — it is not a point-to-point movement and is handled separately
+    in step 2.
 
 2. CHOOSE RENTAL CAR (only if wants_rental_car is true)
-   - Select one car from the search results. Carry the FULL car object.
-   - Set chosen_car to this object. If wants_rental_car is false, set
-     chosen_car to null — do not omit the field or invent a car.
-   - A rental car represents availability for local mobility during the
-     trip, not a scheduled arrival/departure — it does not get a "leg"
-     value and is not scheduled as a transport event on any specific day.
+  - Select one car from the search results. Carry the FULL car object.
+  - Set chosen_car to this object. If wants_rental_car is false, set
+    chosen_car to null — do not omit the field or invent a car.
+  - A rental car represents availability for local mobility during the
+    trip, not a scheduled arrival/departure — it does not get a "leg"
+    value and is not scheduled as a transport event on any specific day.
 
 3. CHOOSE HOTEL
-   - Select one hotel from the search results, informed by budget_tier.
-     Carry the FULL hotel object, not just an ID or name.
+  - Select one hotel from the search results, informed by budget_tier.
+    Carry the FULL hotel object, not just an ID or name.
 
 4. BUILD DAY-BY-DAY SCHEDULE
-   - Build exactly one day entry for each date in `trip_dates`, in the
-     order given — no more, no fewer. Do not compute the date range
-     yourself or infer it from start_date/end_date; `trip_dates` is the
-     authoritative list of days to build.
-   - Each day has an explicit "date" (ISO string) taken directly from
-     `trip_dates` — never rely on list position to imply which day
-     something is.
-   - Each day has ONE events list mixing every event type together
-     (transport, hotel_checkin, hotel_checkout, activity), sorted by time.
-     Do not use separate lists per event type.
-   - Do not create a "rental car" event type. If a rental car is chosen,
-     it is available context for the trip, not a scheduled event — it does
-     not appear in the daily events list.
-   - Use the weather forecast to sequence outdoor activities on clearer
-     days where possible, and avoid overloading a day with heavy rain
-     forecast — but do not fabricate weather-driven changes if the forecast
-     data doesn't clearly support one.
-   - Respect pace: "relaxed" means fewer events per day, "packed" means
-     more, "moderate" is in between. Do not schedule back-to-back activities
-     with no reasonable gap on a relaxed-pace trip.
-   - Do not put a cost field on individual events — cost lives only at the
-     transport/hotel/car object level and in total_cost.
+  - Build exactly one day entry for each date in `trip_dates`, in the
+    order given — no more, no fewer. Do not compute the date range
+    yourself or infer it from start_date/end_date; `trip_dates` is the
+    authoritative list of days to build.
+  - Each day has an explicit "date" (ISO string) taken directly from
+    `trip_dates` — never rely on list position to imply which day
+    something is.
+  - Each day has ONE events list mixing every event type together
+    (transport, hotel_checkin, hotel_checkout, activity), sorted by time.
+    Do not use separate lists per event type.
+  - Do not create a "rental car" event type. If a rental car is chosen,
+    it is available context for the trip, not a scheduled event — it does
+    not appear in the daily events list.
+  - Use the weather forecast to sequence outdoor activities on clearer
+    days where possible, and avoid overloading a day with heavy rain
+    forecast — but do not fabricate weather-driven changes if the forecast
+    data doesn't clearly support one.
+  - Respect pace: "relaxed" means fewer events per day, "packed" means
+    more, "moderate" is in between. Do not schedule back-to-back activities
+    with no reasonable gap on a relaxed-pace trip.
+  - Do not put a cost field on individual events — cost lives only at the
+    transport/hotel/car object level and in total_cost.
+  - Event titles for transport MUST name the city using ONLY the
+    arrival_airport / departure_airport (or station) fields already present
+    on the chosen leg object. Never write a city name from general
+    knowledge or airline-route familiarity — if you are not directly
+    copying it from a field in this leg's own data, do not write it.
+    Example: if arrival_airport is "AMD", the title must say the city
+    AMD actually maps to for this trip (destination or origin_city from
+    trip_summary, whichever direction the leg is going) — never a
+    different city, however common that airline's other routes might be.
+  - On any day that also has a transport arrival event, hotel_checkin's
+    time must be AT OR AFTER that day's arrival_time — never before.
+    The hotel's own check_in_time field (e.g. "2:00 PM") is a policy
+    floor for guests arriving independently, not a scheduling instruction
+    to apply blindly: if the traveler's flight/train lands after the
+    hotel's listed check_in_time, use the actual arrival time (plus
+    reasonable transit time to the hotel), not the earlier policy time.
+  - Symmetrically, on any day with a transport departure event,
+    hotel_checkout must be AT OR BEFORE that day's departure_time, with
+    enough gap to reasonably reach the airport/station beforehand.
+  - Do not schedule any activity between a transport arrival and the
+    following hotel_checkin on the same day unless the gap between them
+    is large enough to plausibly fit one (a same-day activity squeezed
+    before checking into a hotel needs at least a few free hours, not
+  a same-hour or overlapping slot).
 
 5. CALCULATE total_cost
-   - Sum of what was ACTUALLY chosen (transport + hotel + rental car if
-     chosen + any activities with a price) — this is the real number,
-     distinct from Budget Agent's earlier estimated_total floor.
+  - Sum of what was ACTUALLY chosen (transport + hotel + rental car if
+    chosen + any activities with a price) — this is the real number,
+    distinct from Budget Agent's earlier estimated_total floor.
 
 Also include trip_summary (destination, start_date, end_date, num_travelers)
 pulled from the input, unchanged.

@@ -64,8 +64,16 @@ def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
 
     airline = first_segment.get("airline", "Unknown")
 
+    # flight_id must distinguish every real option the itinerary builder
+    # sees. Full flight_number (never truncated) covers same-first-leg /
+    # different-connection cases (e.g. "AI 2848, AI 2745" vs
+    # "AI 2848, IX 1242" - previously collided when both were cut to
+    # "AI 284"). direction is prefixed on top as a second axis, covering
+    # same flight_number appearing on both outbound and return legs.
+    flight_id = f"{direction}-{flight_number}" if flight_number != "N/A" else "N/A"
+
     return {
-        "flight_id": f"{airline[:2].upper()}-{flight_number[:6]}" if flight_number != "N/A" else "N/A",
+        "flight_id": flight_id,
         "direction": direction,
         "airline": airline,
         "flight_number": flight_number,

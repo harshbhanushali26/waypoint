@@ -40,10 +40,21 @@ class WeatherAPIError(Exception):
     reraise=True
 )
 def _geo_code(city: str) -> tuple[float, float]:
-    """Resolves a city name to (latitude, longitude) via Open-Meteo geocoding."""
+    """
+    Resolves a destination string (city or state) to (latitude, longitude)
+    via Open-Meteo geocoding.
+
+    Open-Meteo only indexes populated places, not states/regions as their
+    own entities — so "Goa" (a state) never appears as a direct name match,
+    only localities like "Old Goa" do. Resolution runs in two tiers:
+        1. Exact match on `admin1` — handles state/region-level destinations
+            (Goa, Kerala) where no single populated place shares the name
+            Population is the tiebreaker within whichever tier matches.
+        2. Exact match on `name` — handles city-level destinations (Mumbai, Jaipur)
+    """
     response = httpx.get(
         OPEN_METEO_GEOCODING_URL,
-        params={"name": f"{city}, India", "count": 1, "language": "en", "format": "json"},
+        params={"name": city, "count": 100, "language": "en", "countryCode": "IN", "format": "json"},
         timeout=15
     )
     response.raise_for_status()
@@ -53,8 +64,29 @@ def _geo_code(city: str) -> tuple[float, float]:
     if not results:
         raise WeatherAPIError(f"Could not geocode '{city}'")
 
-    first = results[0]
-    return float(first["latitude"]), float(first["longitude"])
+    # Restrict to India — this app is India-only, and country_code filtering
+    # generalizes correctly across every destination, unlike checking admin1.
+    in_results = [r for r in results if r.get("country_code") == "IN"]
+    if not in_results:
+        raise WeatherAPIError(f"No India results found for '{city}'")
+
+    city_lower = city.strip().lower()
+
+    # Tier 1: exact match on admin1 (state/region name) — pick most populous
+    # place within that state as a representative point
+    admin1_matches = [r for r in in_results if r.get("admin1", "").strip().lower() == city_lower]
+    if admin1_matches:
+        best = max(admin1_matches, key=lambda r: r.get("population", 0))
+        return float(best["latitude"]), float(best["longitude"])
+
+    # Tier 2: exact match on the populated place's own name
+    name_matches = [r for r in in_results if r.get("name", "").strip().lower() == city_lower]
+    if name_matches:
+        best = max(name_matches, key=lambda r: r.get("population", 0))
+        return float(best["latitude"]), float(best["longitude"])
+
+    # Fallback: neither tier matched exactly — use the most populous IN result
+    raise WeatherAPIError(f"No exact city or state match found for '{city}' in India")
 
 
 # ── Forecast fetch ───────────────────────────────────────────────────────

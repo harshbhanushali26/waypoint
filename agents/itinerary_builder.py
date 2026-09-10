@@ -10,6 +10,7 @@ from prompts.itinerary_builder_prompt import ITINERARY_BUILDER_SYSTEM_PROMPT, bu
 from prompts.itinerary_reviser_prompt import ITINERARY_REVISER_SYSTEM_PROMPT, build_itinerary_reviser_user_message
 from models.schemas import Itinerary
 from graph.state import TripState
+from graph.transport_utils import top_n_per_direction
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ _HOTEL_FIELDS = [
 ]
 
 _ACTIVITY_FIELDS = ["title", "snippet", "url"]
+
+_TRANSPORT_TOP_N_PER_DIRECTION = 2
 
 
 def _collect_data_gaps(state: TripState, transport_modes: set[str]) -> list[str]:
@@ -124,6 +127,59 @@ def _filter_priced_trains(trains: list[dict]) -> list[dict]:
     return [t for t in trains if t.get("price", 0) > 0]
 
 
+def _compute_total_cost(itinerary: dict, log) -> float:
+    """
+    Computes the real cost of what was actually chosen, replacing the
+    LLM-authored total_cost field entirely (see locked design: the LLM
+    was echoing budget_analysis.estimated_total instead of summing its
+    own selections).
+
+    Reads chosen_transport (list, key "price"), chosen_car (dict or
+    None, key "total_price"), and chosen_hotel (dict, key "total_price").
+    Activities never contribute - no price field exists on them.
+
+    A missing/zero price on an entry that IS present is logged as a
+    warning and treated as 0 in the sum, rather than raised - this is
+    LLM-reproduced data that already passed schema validation, not a
+    tool-node contract violation, so a suspicious value shouldn't crash
+    itinerary building.
+    """
+    total = 0.0
+
+    for leg in itinerary.get("chosen_transport", []):
+        price = leg.get("price")
+        if not price or price <= 0:
+            log.warning(
+                "_compute_total_cost: chosen_transport leg has missing/zero price: %s",
+                leg,
+            )
+            price = 0
+        total += price
+
+    chosen_car = itinerary.get("chosen_car")
+    if chosen_car is not None:
+        price = chosen_car.get("total_price")
+        if not price or price <= 0:
+            log.warning(
+                "_compute_total_cost: chosen_car has missing/zero total_price: %s",
+                chosen_car,
+            )
+            price = 0
+        total += price
+
+    chosen_hotel = itinerary.get("chosen_hotel", {})
+    price = chosen_hotel.get("total_price")
+    if not price or price <= 0:
+        log.warning(
+            "_compute_total_cost: chosen_hotel has missing/zero total_price: %s",
+            chosen_hotel,
+        )
+        price = 0
+    total += price
+
+    return total
+
+
 def itinerary_builder_node(state: TripState) -> dict:
     """Builds or revises the itinerary depending on whether
     critic_analysis is present in state."""
@@ -145,7 +201,7 @@ def itinerary_builder_node(state: TripState) -> dict:
             "trip_dates": trip_dates,
         }
 
-        structured_llm = get_structured_llm(Itinerary, include_raw=True)
+        structured_llm = get_structured_llm(Itinerary, include_raw=True, max_tokens=AGENT_MAX_TOKENS["itinerary_builder"])
         revise_user_message = build_itinerary_reviser_user_message(revise_slice)
 
         log.debug(
@@ -158,7 +214,6 @@ def itinerary_builder_node(state: TripState) -> dict:
                 {"role": "system", "content": ITINERARY_REVISER_SYSTEM_PROMPT},
                 {"role": "user", "content": revise_user_message},
             ],
-            max_tokens=AGENT_MAX_TOKENS["itinerary_builder"],
         )
 
         log.debug("Itinerary reviser token usage: %s", response["raw"].usage_metadata)
@@ -172,6 +227,7 @@ def itinerary_builder_node(state: TripState) -> dict:
 
         itinerary = response["parsed"].model_dump()
         itinerary["data_gaps"] = state["itinerary"].get("data_gaps", [])
+        itinerary["total_cost"] = _compute_total_cost(itinerary, log)
         log.info("Itinerary revised: %s", itinerary)
 
         return {"itinerary": itinerary, "status": "awaiting_review"}
@@ -189,6 +245,13 @@ def itinerary_builder_node(state: TripState) -> dict:
     activities = state.get("activities", [])
     weather = state.get("weather", [])
 
+    # Cut to the cheapest N per direction BEFORE field-trimming, while
+    # "price" is still guaranteed present - trimming keeps "price" per
+    # _FLIGHT_FIELDS/_TRAIN_FIELDS anyway, but ranking should happen on
+    # full objects, not an assumption about what survives the allowlist.
+    flights = top_n_per_direction(flights, "price", _TRANSPORT_TOP_N_PER_DIRECTION)
+    trains = top_n_per_direction(trains, "price", _TRANSPORT_TOP_N_PER_DIRECTION)
+
     # Field-trim every object down to what a real screen could show.
     flights = _trim(flights, _FLIGHT_FIELDS)
     trains = _trim(trains, _TRAIN_FIELDS)
@@ -199,7 +262,7 @@ def itinerary_builder_node(state: TripState) -> dict:
 
     hotels = hotels[:3]
     activities = activities[:8]
-    trains = _filter_priced_trains(trains)
+    # trains = _filter_priced_trains(trains)
 
     weather = _filter_weather_to_trip_dates(
         weather,
@@ -228,7 +291,36 @@ def itinerary_builder_node(state: TripState) -> dict:
         "wants_rental_car": normalized_input["wants_rental_car"],
     }
 
-    structured_llm = get_structured_llm(Itinerary, include_raw=True)
+    # structured_llm = get_structured_llm(Itinerary, include_raw=True, max_tokens=AGENT_MAX_TOKENS["itinerary_builder"])
+    # build_user_message = build_itinerary_builder_user_message(state_slice)
+
+    # log.debug("Itinerary builder state_slice: %s", state_slice)
+    # log.debug(
+    #     "Itinerary builder input: system_prompt_len=%d user_msg_len=%d days=%d",
+    #     len(ITINERARY_BUILDER_SYSTEM_PROMPT), len(build_user_message), len(trip_dates),
+    # )
+
+    # response = structured_llm.invoke(
+    #     [
+    #         {"role": "system", "content": ITINERARY_BUILDER_SYSTEM_PROMPT},
+    #         {"role": "user", "content": build_user_message},
+    #     ],
+    # )
+
+    # log.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
+
+    # if response["parsed"] is None:
+    #     log.error(
+    #         "Itinerary build parsing failed. raw_content=%r usage=%s",
+    #         response["raw"].content, response["raw"].usage_metadata,
+    #     )
+    #     raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
+
+    # itinerary = response["parsed"].model_dump()
+    # itinerary["total_cost"] = _compute_total_cost(itinerary, log)
+    # log.info("Itinerary built: %s", itinerary)
+
+    structured_llm = get_structured_llm(Itinerary, max_tokens=AGENT_MAX_TOKENS["itinerary_builder"])
     build_user_message = build_itinerary_builder_user_message(state_slice)
 
     log.debug("Itinerary builder state_slice: %s", state_slice)
@@ -242,19 +334,19 @@ def itinerary_builder_node(state: TripState) -> dict:
             {"role": "system", "content": ITINERARY_BUILDER_SYSTEM_PROMPT},
             {"role": "user", "content": build_user_message},
         ],
-        max_tokens=AGENT_MAX_TOKENS["itinerary_builder"],
     )
 
-    log.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
+    # log.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
 
-    if response["parsed"] is None:
-        log.error(
-            "Itinerary build parsing failed. raw_content=%r usage=%s",
-            response["raw"].content, response["raw"].usage_metadata,
-        )
-        raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
+    # if response["parsed"] is None:
+    #     log.error(
+    #         "Itinerary build parsing failed. raw_content=%r usage=%s",
+    #         response["raw"].content, response["raw"].usage_metadata,
+    #     )
+    #     raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
 
-    itinerary = response["parsed"].model_dump()
+    itinerary = response.model_dump()
+    itinerary["total_cost"] = _compute_total_cost(itinerary, log)
     log.info("Itinerary built: %s", itinerary)
 
     itinerary["data_gaps"] = _collect_data_gaps(state, transport_modes)

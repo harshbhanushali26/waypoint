@@ -5,6 +5,7 @@ import logging
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
 from core.logging import get_trip_logger
+from graph.transport_utils import split_by_direction
 from prompts.budget_prompt import BUDGET_SYSTEM_PROMPT, build_budget_user_message
 from models.schemas import BudgetAnalysis
 from graph.state import TripState
@@ -33,30 +34,76 @@ _TRANSPORT_PRICE_FIELDS = {
 }
 
 
-def _cheapest_transport(state: dict) -> tuple[str | None, float]:
-    """Cheapest single option across flights/trains/buses/cars.
+def _is_round_trip(normalized_input: dict) -> bool:
+    """A trip needs a return leg only when end_date differs from
+    start_date - matches the exact check search_flights/search_trains
+    already use to decide whether to fetch a return at all."""
+    start = normalized_input.get("start_date")
+    end = normalized_input.get("end_date")
+    return bool(end) and end != start
 
-    Each mode may use a different key for the fare (see
-    _TRANSPORT_PRICE_FIELDS), so we look up the correct key per mode
-    instead of hardcoding "price" for all of them.
 
-    Returns (winning_mode, price) or (None, 0.0) if nothing searched
-    or no option in any mode has a fare.
+def _cheapest_leg_price(options: list[dict], price_key: str) -> float | None:
+    """Cheapest single fare in a list of same-direction options for one
+    mode. None if nothing in the list has a usable (non-zero) price -
+    a price of 0 means the fare lookup failed, not that it's free."""
+    prices = [
+        float(o[price_key])
+        for o in options
+        if o.get(price_key) is not None and o[price_key] > 0
+    ]
+    return min(prices) if prices else None
+
+
+def _cheapest_transport(state: dict) -> tuple[str | None, float, list[str]]:
+    """Cheapest same-mode transport cost across flights/trains/buses/cars.
+
+    Same-mode only: the floor is cheapest-outbound-flight +
+    cheapest-return-flight, or cheapest-outbound-train + cheapest-return-
+    train, etc. - never outbound-flight + return-train. Mixed-mode
+    floors are deliberately out of scope for now (adds complexity for
+    a rare case).
+
+    Returns (winning_mode, total_price, gap_notes). gap_notes is
+    non-empty when a round trip is needed but at least one mode had a
+    priced outbound with no priced return - that mode is excluded from
+    the candidate pool entirely rather than silently costed as
+    outbound-only, so the reported floor never quietly drops a leg.
     """
+    round_trip = _is_round_trip(state["normalized_input"])
     candidates = []
+    gap_notes = []
 
     for mode, price_key in _TRANSPORT_PRICE_FIELDS.items():
-        for option in state.get(mode, []):
-            price = option.get(price_key)
-            # Skip None and 0 — a price of 0 means the fare lookup
-            # failed (e.g. rate limited), not that the option is free.
-            if price is not None and price > 0:
-                candidates.append((mode, float(price)))
+        options = state.get(mode, [])
+        if not options:
+            continue
+
+        by_direction = split_by_direction(options)
+        outbound_price = _cheapest_leg_price(by_direction["outbound"], price_key)
+
+        if outbound_price is None:
+            continue  # no usable outbound fare for this mode at all
+
+        if not round_trip:
+            candidates.append((mode, outbound_price))
+            continue
+
+        return_price = _cheapest_leg_price(by_direction["return"], price_key)
+        if return_price is None:
+            gap_notes.append(
+                f"{mode}: outbound fare found but no priced return leg "
+                f"- excluded from the transport cost floor."
+            )
+            continue
+
+        candidates.append((mode, outbound_price + return_price))
 
     if not candidates:
-        return None, 0.0
+        return None, 0.0, gap_notes
 
-    return min(candidates, key=lambda c: c[1])
+    winning_mode, total = min(candidates, key=lambda c: c[1])
+    return winning_mode, total, gap_notes
 
 
 def _cheapest_hotel(state: dict) -> float:
@@ -85,7 +132,7 @@ def budget_node(state: TripState) -> dict:
 
     log = get_trip_logger(logger, state["trip_id"])
 
-    transport_mode, transport_cost = _cheapest_transport(state)
+    transport_mode, transport_cost, transport_gaps = _cheapest_transport(state)
     hotel_cost = _cheapest_hotel(state)
     activities_cost = _activities_cost(state)
 
@@ -117,6 +164,8 @@ def budget_node(state: TripState) -> dict:
         transport_mode, transport_cost, hotel_cost, activities_cost,
         estimated_total, budget,
     )
+    if transport_gaps:
+        log.warning("Budget transport gaps: %s", transport_gaps)
     log.debug(
         "Budget input: system_prompt_len=%d user_msg_len=%d",
         len(BUDGET_SYSTEM_PROMPT), len(user_message),
@@ -139,6 +188,7 @@ def budget_node(state: TripState) -> dict:
         "over_budget": over_budget,
         "overage_amount": overage_amount,
         "suggestions": suggestions,
+        "transport_gaps": transport_gaps,
     }
 
     log.info("Budget analysis: %s", budget_analysis)

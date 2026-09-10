@@ -19,7 +19,7 @@ llm = ChatGroq(
 )
 
 
-def get_structured_llm(schema, include_raw=False, reasoning_effort=None):
+def get_structured_llm(schema, include_raw=False, reasoning_effort=None, max_tokens=None):
     """
     Wraps llm.with_structured_output() with method="json_schema" instead of
     the default tool-calling method. gpt-oss-120b's harmony format leaks
@@ -44,9 +44,25 @@ def get_structured_llm(schema, include_raw=False, reasoning_effort=None):
     those that opt in, matching the existing per-agent AGENT_MAX_TOKENS
     pattern - a shared client setting would affect every agent, but only
     Itinerary Builder has shown token-budget pressure so far.
+
+    max_tokens: bound onto the LLM object itself via .bind(), same
+    pattern as reasoning_effort - NOT passed at .invoke() time. When
+    include_raw=True, with_structured_output() wraps the LLM inside a
+    RunnableParallel rather than a plain sequence, and RunnableParallel
+    doesn't forward .invoke()-time kwargs down into its branches. Binding
+    happens before any wrapping occurs, so it survives regardless of
+    which chain shape include_raw produces - this is why reasoning_effort
+    already worked but max_tokens (passed at invoke-time) silently didn't
+    for itinerary_builder.
     """
     target_llm = llm
+    bind_kwargs = {}
     if reasoning_effort is not None:
-        target_llm = llm.bind(reasoning_effort=reasoning_effort)
+        bind_kwargs["reasoning_effort"] = reasoning_effort
+    if max_tokens is not None:
+        bind_kwargs["max_tokens"] = max_tokens
+    if bind_kwargs:
+        target_llm = llm.bind(**bind_kwargs)
+
 
     return target_llm.with_structured_output(schema, method="json_schema", include_raw=include_raw)

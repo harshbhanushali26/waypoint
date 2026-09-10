@@ -42,7 +42,7 @@ def critic_node(state: TripState) -> Command:
     log = get_trip_logger(logger, state["trip_id"])
 
     user_message = build_critic_user_message(user_request)
-    structured_llm = get_structured_llm(CriticAnalysis)
+    structured_llm = get_structured_llm(CriticAnalysis, max_tokens=AGENT_MAX_TOKENS["critic"])
 
     log.debug(
         "Critic input: system_prompt_len=%d user_msg_len=%d",
@@ -54,7 +54,6 @@ def critic_node(state: TripState) -> Command:
             {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=AGENT_MAX_TOKENS["critic"],
     )
 
     critic_analysis = response.model_dump()

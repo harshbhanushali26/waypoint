@@ -20,7 +20,7 @@ def planner_node(state: TripState) -> dict:
     log = get_trip_logger(logger, state["trip_id"])
     user_message = build_planner_user_message(normalized_input)
 
-    structured_llm = get_structured_llm(SearchPlan)
+    structured_llm = get_structured_llm(SearchPlan, max_tokens=AGENT_MAX_TOKENS["planner"])
 
     log.debug(
         "Planner input: system_prompt_len=%d user_msg_len=%d",
@@ -32,7 +32,6 @@ def planner_node(state: TripState) -> dict:
             {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=AGENT_MAX_TOKENS["planner"],
     )
 
     search_plan = response.model_dump()
