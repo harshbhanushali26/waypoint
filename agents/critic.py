@@ -42,7 +42,7 @@ def critic_node(state: TripState) -> Command:
     log = get_trip_logger(logger, state["trip_id"])
 
     user_message = build_critic_user_message(user_request)
-    structured_llm = get_structured_llm(CriticAnalysis, max_tokens=AGENT_MAX_TOKENS["critic"])
+    structured_llm = get_structured_llm(CriticAnalysis, include_raw=True, max_tokens=AGENT_MAX_TOKENS["critic"])
 
     log.debug(
         "Critic input: system_prompt_len=%d user_msg_len=%d",
@@ -56,7 +56,16 @@ def critic_node(state: TripState) -> Command:
         ],
     )
 
-    critic_analysis = response.model_dump()
+    log.debug("Critic token usage: %s", response["raw"].usage_metadata)
+
+    if response["parsed"] is None:
+        log.error(
+            "Critic parsing failed. raw_content=%r usage=%s",
+            response["raw"].content, response["raw"].usage_metadata,
+        )
+        raise RuntimeError("Critic parsing failed - see logged raw content above")
+
+    critic_analysis = response["parsed"].model_dump()
     log.info("Critic analysis: %s", critic_analysis)
     target = critic_analysis["target"]
 
