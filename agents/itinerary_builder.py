@@ -2,6 +2,7 @@
 mode (first pass) or REVISE mode (Critic routed back with an edit request)."""
 
 import logging
+import time
 from datetime import date, timedelta
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
@@ -186,6 +187,34 @@ def itinerary_builder_node(state: TripState) -> dict:
     normalized_input = state["normalized_input"]
 
     log = get_trip_logger(logger, state["trip_id"])
+
+    # ── Groq token-window wait ─────────────────────────────────────
+    # Budget's LLM call just finished (BUILD mode) and its tokens sit
+    # in Groq's 60s sliding TPM window alongside Concierge's and
+    # Planner's. This call needs ~8k tokens on its own — more than
+    # what's left (~2.4k). Waiting until all prior tokens have expired
+    # guarantees a fresh 8,000-token window.
+    #
+    # REVISE mode: runs minutes later (after human review + critic),
+    # so elapsed >> 62 and the wait is a no-op — same code serves both.
+    _budget_done = state.get("_budget_llm_done_at")
+    if _budget_done:
+        _elapsed = time.time() - _budget_done
+        if _elapsed < 62:
+            _wait = 62 - _elapsed + 2   # +2s clock-skew buffer
+            log.info(
+                "Itinerary builder: %.0fs since Budget LLM call — "
+                "waiting %.0fs for Groq token window reset",
+                _elapsed, _wait,
+            )
+            time.sleep(_wait)
+        else:
+            log.info(
+                "Itinerary builder: %.0fs since Budget LLM call — "
+                "token window already clear, proceeding",
+                _elapsed,
+            )
+
     trip_dates = _compute_trip_dates(
         normalized_input["start_date"],
         normalized_input["end_date"],
@@ -260,6 +289,7 @@ def itinerary_builder_node(state: TripState) -> dict:
     hotels = _trim(hotels, _HOTEL_FIELDS)
     activities = _trim(activities, _ACTIVITY_FIELDS)
 
+    hotels = [h for h in hotels if h.get("total_price", 0) > 0]
     hotels = hotels[:3]
     activities = activities[:8]
     # trains = _filter_priced_trains(trains)
@@ -291,36 +321,7 @@ def itinerary_builder_node(state: TripState) -> dict:
         "wants_rental_car": normalized_input["wants_rental_car"],
     }
 
-    # structured_llm = get_structured_llm(Itinerary, include_raw=True, max_tokens=AGENT_MAX_TOKENS["itinerary_builder"])
-    # build_user_message = build_itinerary_builder_user_message(state_slice)
-
-    # log.debug("Itinerary builder state_slice: %s", state_slice)
-    # log.debug(
-    #     "Itinerary builder input: system_prompt_len=%d user_msg_len=%d days=%d",
-    #     len(ITINERARY_BUILDER_SYSTEM_PROMPT), len(build_user_message), len(trip_dates),
-    # )
-
-    # response = structured_llm.invoke(
-    #     [
-    #         {"role": "system", "content": ITINERARY_BUILDER_SYSTEM_PROMPT},
-    #         {"role": "user", "content": build_user_message},
-    #     ],
-    # )
-
-    # log.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
-
-    # if response["parsed"] is None:
-    #     log.error(
-    #         "Itinerary build parsing failed. raw_content=%r usage=%s",
-    #         response["raw"].content, response["raw"].usage_metadata,
-    #     )
-    #     raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
-
-    # itinerary = response["parsed"].model_dump()
-    # itinerary["total_cost"] = _compute_total_cost(itinerary, log)
-    # log.info("Itinerary built: %s", itinerary)
-
-    structured_llm = get_structured_llm(Itinerary, max_tokens=AGENT_MAX_TOKENS["itinerary_builder"])
+    structured_llm = get_structured_llm(Itinerary, include_raw=True, max_tokens=AGENT_MAX_TOKENS["itinerary_builder"])
     build_user_message = build_itinerary_builder_user_message(state_slice)
 
     log.debug("Itinerary builder state_slice: %s", state_slice)
@@ -336,16 +337,16 @@ def itinerary_builder_node(state: TripState) -> dict:
         ],
     )
 
-    # log.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
+    log.debug("Itinerary builder token usage: %s", response["raw"].usage_metadata)
 
-    # if response["parsed"] is None:
-    #     log.error(
-    #         "Itinerary build parsing failed. raw_content=%r usage=%s",
-    #         response["raw"].content, response["raw"].usage_metadata,
-    #     )
-    #     raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
+    if response["parsed"] is None:
+        log.error(
+            "Itinerary build parsing failed. raw_content=%r usage=%s",
+            response["raw"].content, response["raw"].usage_metadata,
+        )
+        raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
 
-    itinerary = response.model_dump()
+    itinerary = response["parsed"].model_dump()
     itinerary["total_cost"] = _compute_total_cost(itinerary, log)
     log.info("Itinerary built: %s", itinerary)
 

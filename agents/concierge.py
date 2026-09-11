@@ -25,6 +25,48 @@ TRIP_LENGTH_MESSAGE = (
 )
 
 
+def _invoke_concierge_llm(
+    schema, system_prompt: str, user_message: str, label: str, log
+):
+    """
+    One Concierge LLM call with include_raw=True — the same pattern Planner
+    uses, centralized here because the Concierge makes up to three calls
+    (round 1, round 2, fallback) that all need identical handling:
+
+      - log real token usage from the raw AIMessage (not the max_tokens
+        ceiling), so scripts/check_agent_token_usage.py-style auditing
+        works against live runs too;
+      - fail loud with the raw content logged when structured parsing
+        fails, rather than silently proceeding with a None.
+
+    Returns the parsed schema instance (raises RuntimeError on parse
+    failure).
+    """
+    structured_llm = get_structured_llm(
+        schema, include_raw=True, max_tokens=AGENT_MAX_TOKENS["concierge"]
+    )
+
+    response = structured_llm.invoke(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+    )
+
+    log.debug("Concierge %s token usage: %s", label, response["raw"].usage_metadata)
+
+    if response["parsed"] is None:
+        log.error(
+            "Concierge %s parsing failed. raw_content=%r usage=%s",
+            label, response["raw"].content, response["raw"].usage_metadata,
+        )
+        raise RuntimeError(
+            f"Concierge {label} parsing failed - see logged raw content above"
+        )
+
+    return response["parsed"]
+
+
 def _collect_raw_form_input(state: TripState) -> dict:
     """Pull the original form fields straight from top-level state."""
     return {
@@ -77,11 +119,8 @@ def concierge_node(state: TripState) -> dict:
             len(CONCIERGE_SYSTEM_PROMPT), len(user_message),
         )
 
-        response: NormalizedInput = get_structured_llm(NormalizedInput, max_tokens=AGENT_MAX_TOKENS["concierge"]).invoke(
-            [
-                {"role": "system", "content": CONCIERGE_SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
+        response = _invoke_concierge_llm(
+            NormalizedInput, CONCIERGE_SYSTEM_PROMPT, user_message, "round 1", log
         )
 
         log.debug("Concierge round 1 needs_clarification: %s", response.needs_clarification)
@@ -112,11 +151,8 @@ def concierge_node(state: TripState) -> dict:
             len(CONCIERGE_SYSTEM_PROMPT), len(round2_user_message),
         )
 
-        response2: NormalizedInput = get_structured_llm(NormalizedInput, max_tokens=AGENT_MAX_TOKENS["concierge"]).invoke(
-            [
-                {"role": "system", "content": CONCIERGE_SYSTEM_PROMPT},
-                {"role": "user", "content": round2_user_message},
-            ],
+        response2 = _invoke_concierge_llm(
+            NormalizedInput, CONCIERGE_SYSTEM_PROMPT, round2_user_message, "round 2", log
         )
 
         log.debug("Concierge round 2 needs_clarification: %s", response2.needs_clarification)
@@ -135,20 +171,18 @@ def concierge_node(state: TripState) -> dict:
         # ---- Round 2 still ambiguous -> fallback, no second interrupt ----
         log.debug("Concierge fallback input: system_prompt_len=%d", len(FALLBACK_SYSTEM_PROMPT))
 
-        fallback_response: TripContext = get_structured_llm(TripContext, max_tokens=AGENT_MAX_TOKENS["concierge"]).invoke(
-            [
-                {"role": "system", "content": FALLBACK_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": build_concierge_fallback_user_message(
-                        raw_form_input,
-                        clarification_qa={
-                            "question": response.clarification_question,
-                            "answer": answer,
-                        },
-                    ),
+        fallback_response = _invoke_concierge_llm(
+            TripContext,
+            FALLBACK_SYSTEM_PROMPT,
+            build_concierge_fallback_user_message(
+                raw_form_input,
+                clarification_qa={
+                    "question": response.clarification_question,
+                    "answer": answer,
                 },
-            ],
+            ),
+            "fallback",
+            log,
         )
 
         log.info("Concierge fallback normalized_input: %s", fallback_response.model_dump())

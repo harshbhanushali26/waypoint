@@ -1,6 +1,7 @@
 """budget_node — sums cheapest transport + hotel + activities cost against
 budget. All numeric fields deterministic; LLM only supplies suggestions."""
 
+import time
 import logging
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
@@ -147,7 +148,7 @@ def budget_node(state: TripState) -> dict:
     # LLM call: schema requires all fields, but only `suggestions` is kept.
     # Every numeric field below is computed deterministically, not trusted
     # from the model.
-    structured_llm = get_structured_llm(BudgetAnalysis)
+    structured_llm = get_structured_llm(BudgetAnalysis, include_raw=True, max_tokens=AGENT_MAX_TOKENS["budget"])
 
     state_slice = {
         "budget": budget,
@@ -176,10 +177,21 @@ def budget_node(state: TripState) -> dict:
             {"role": "system", "content": BUDGET_SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=AGENT_MAX_TOKENS["budget"],
     )
 
-    suggestions = response.suggestions if over_budget else []
+    log.debug("Budget token usage: %s", response["raw"].usage_metadata)
+    
+    if response["parsed"] is None:
+        log.error(
+            "Budget parsing failed. raw_content=%r usage=%s",
+            response["raw"].content, response["raw"].usage_metadata,
+        )
+        raise RuntimeError("Budget parsing failed - see logged raw content above")
+
+    budget_analyze = response["parsed"]
+
+    suggestions = budget_analyze.suggestions if over_budget else []
+    # suggestions = response.suggestions if over_budget else []
 
     budget_analysis = {
         "estimated_total": estimated_total,
@@ -192,4 +204,4 @@ def budget_node(state: TripState) -> dict:
     }
 
     log.info("Budget analysis: %s", budget_analysis)
-    return {"budget_analysis": budget_analysis, "status": "building_itinerary"}
+    return {"budget_analysis": budget_analysis, "status": "building_itinerary", "_budget_llm_done_at": time.time(),}

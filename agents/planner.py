@@ -20,7 +20,7 @@ def planner_node(state: TripState) -> dict:
     log = get_trip_logger(logger, state["trip_id"])
     user_message = build_planner_user_message(normalized_input)
 
-    structured_llm = get_structured_llm(SearchPlan, max_tokens=AGENT_MAX_TOKENS["planner"])
+    structured_llm = get_structured_llm(SearchPlan, include_raw=True, max_tokens=AGENT_MAX_TOKENS["planner"])
 
     log.debug(
         "Planner input: system_prompt_len=%d user_msg_len=%d",
@@ -34,7 +34,18 @@ def planner_node(state: TripState) -> dict:
         ],
     )
 
-    search_plan = response.model_dump()
+    log.debug("Planner token usage: %s", response["raw"].usage_metadata)
+
+    if response["parsed"] is None:
+            log.error(
+                "Planner parsing failed. raw_content=%r usage=%s",
+                response["raw"].content, response["raw"].usage_metadata,
+            )
+            raise RuntimeError("Planner parsing failed - see logged raw content above")
+
+    search_plan = response["parsed"].model_dump()
+
+    # search_plan = response.model_dump()
     log.info("Planner search_plan: %s", search_plan)
 
     # Cross-field constraint the schema can't express: strict:true guarantees

@@ -182,12 +182,13 @@ The following components have been completed and verified end to end:
   - `POST /trips/{id}/review` (approve and edit flows tested)
 - **Frontend** — all 4 pages built and tested end to end against the live backend
 - **Testing utilities** — per-tool integration test harnesses and debug scripts under `scripts/`
+- **Logging** — structured logging implemented in agents and tools
 
 ## 🔜 Future Work
 
 The following items are outstanding:
 
-- 🪵 **Logging** — structured logging has not yet been implemented across the pipeline
+- 🛣️ **Activity messy input** — currenyly the activities messy input is feeded to LLM but later will structure it for proper itineraries.
 - 🚌 **`search_buses` real API integration** — currently a stub; the dummy data returns hardcoded dates regardless of the trip dates and needs to be made date-aware before it is demo-ready
 - 🚗 **`search_cars` real API integration** — currently a stub
 - 🔌 **MCP tools stage** — not yet started

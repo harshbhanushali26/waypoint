@@ -47,3 +47,4 @@ class TripState(TypedDict):
 
     # ── Concierge clarification loop ────────────────────────────────────────
     clarification_attempts: int   # 0 = not yet asked, 1 = one round used, 2 = fallback used
+    _budget_llm_done_at: float
