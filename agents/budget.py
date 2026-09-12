@@ -3,6 +3,7 @@ budget. All numeric fields deterministic; LLM only supplies suggestions."""
 
 import time
 import logging
+from datetime import date
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
 from core.logging import get_trip_logger
@@ -118,12 +119,44 @@ def _cheapest_hotel(state: dict) -> float:
     return min(prices) if prices else 0.0
 
 
+_ACTIVITIES_PER_DAY = {"relaxed": 2, "moderate": 3, "packed": 4}
+
 def _activities_cost(state: dict) -> float:
-    """Sum of activity prices. Returns 0.0 when no price data exists (v1)."""
+    """
+    Floor for activities: the cheapest est_price_inr values needed to
+    fill the trip's days at the given pace (2/day relaxed, 3/day moderate,
+    4/day packed), per person, multiplied by num_travelers.
+
+    Pre-extraction this was always 0.0 (no price field existed on
+    activities). Post-extraction, est_price_inr is per person, so the
+    floor scales with the group. Unpriced activities (free/unknown)
+    contribute 0, which keeps the floor conservative — a floor that
+    assumed every day needs paid activities would overstate it.
+    """
+    normalized_input = state.get("normalized_input", {})
     activities = state.get("activities", [])
-    return sum(
-        a["price"] for a in activities if a.get("price") is not None
+
+    prices = sorted(
+        float(a["est_price_inr"])
+        for a in activities
+        if a.get("est_price_inr") is not None and a["est_price_inr"] > 0
     )
+    if not prices:
+        return 0.0
+
+    try:
+        start = date.fromisoformat(normalized_input["start_date"])
+        end = date.fromisoformat(normalized_input["end_date"])
+        num_days = max((end - start).days + 1, 1)
+    except (KeyError, ValueError, TypeError):
+        num_days = 1
+
+    per_day = _ACTIVITIES_PER_DAY.get(normalized_input.get("pace"), 3)
+    take = min(num_days * per_day, len(prices))
+    per_person_floor = sum(prices[:take])
+
+    num_travelers = normalized_input.get("num_travelers") or 1
+    return per_person_floor * num_travelers
 
 
 def budget_node(state: TripState) -> dict:

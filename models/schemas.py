@@ -135,6 +135,63 @@ class SearchPlan(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────
+# Activity Extraction (search_activities tool node)
+# ─────────────────────────────────────────────────────────────
+
+class Activity(BaseModel):
+    """
+    One discrete, schedulable activity — a specific place or experience
+    ('Fort Aguada', 'Parasailing at Baga Beach'), NOT a web page. Produced
+    by the extraction pass inside search_activities, which expands Tavily's
+    source pages (often listicles) into individual activities. Written to
+    state.activities as a list of these dicts.
+    """
+
+    name: str = Field(
+        description="Specific place or experience, e.g. 'Fort Aguada' or "
+        "'Parasailing at Baga Beach'. Copied exactly into the itinerary's "
+        "activity event title by the Itinerary Builder."
+    )
+    category: str = Field(
+        description="Best-fit interest from the trip's interest list when "
+        "one clearly applies, else a short generic label: 'sightseeing', "
+        "'food', 'outdoors', 'nightlife', 'shopping'."
+    )
+    area: Optional[str] = Field(
+        default=None,
+        description="Neighborhood/locality if the sources name it, e.g. "
+        "'North Goa'. Null otherwise — used by the Itinerary Builder to "
+        "group same-area activities on one day."
+    )
+    est_duration_hours: Optional[float] = Field(
+        default=None,
+        description="Estimated visit duration in hours. Only set when the "
+        "sources or common-sense scheduling of that exact activity make it "
+        "obvious; null otherwise."
+    )
+    est_price_inr: Optional[int] = Field(
+        default=None,
+        description="Per-person price estimate in INR. Only set when a "
+        "source mentions a number or range (use the lower bound); null if "
+        "no price appears anywhere in the sources. Never guessed from "
+        "general knowledge."
+    )
+    source_url: str = Field(
+        description="URL of the source page supporting this activity — "
+        "provenance shown to the traveler on the final screen."
+    )
+
+
+class ActivityCatalog(BaseModel):
+    """Extraction pass output: the full list of discrete activities."""
+    activities: list[Activity] = Field(
+    description="Every distinct activity supported by the source pages. "
+    "Aim for 10-25; deduplicate near-identical activities keeping the "
+    "richer one."
+    )
+
+
+# ─────────────────────────────────────────────────────────────
 # Budget Agent
 # ─────────────────────────────────────────────────────────────
 

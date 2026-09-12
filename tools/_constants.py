@@ -47,6 +47,7 @@ INDIAN_AIRPORTS: dict[str, str] = {
     "vadodara": "BDQ",
     "varanasi": "VNS",
     "visakhapatnam": "VTZ",
+    "bhuj": "BHJ",
 }
 
 

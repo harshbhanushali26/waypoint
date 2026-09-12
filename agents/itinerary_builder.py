@@ -49,7 +49,13 @@ _HOTEL_FIELDS = [
     "check_in_time", "check_out_time", "latitude", "longitude",
 ]
 
-_ACTIVITY_FIELDS = ["title", "snippet", "url"]
+_ACTIVITY_FIELDS = [
+    "name", "category", "area",
+    "est_duration_hours", "est_price_inr", "snippet",
+]
+
+_ACTIVITY_CAP_BY_PACE = {"relaxed": 5, "moderate": 7, "packed": 9}
+
 
 _TRANSPORT_TOP_N_PER_DIRECTION = 2
 
@@ -117,18 +123,91 @@ def _compute_trip_dates(start_date: str, end_date: str) -> list[str]:
     return [(start + timedelta(days=i)).isoformat() for i in range(days)]
 
 
-def _filter_priced_trains(trains: list[dict]) -> list[dict]:
+def _activity_lookup(activities: list[dict]) -> tuple[set[str], dict[str, float]]:
     """
-    Only MAX_FARE_LOOKUPS trains per direction ever get a real fare (see
-    search_trains.py) - the rest sit at price=0, class_code="" and are not
-    meaningfully choosable. Filtering here means the itinerary prompt only
-    ever sees trains it could actually select and cost out, and naturally
-    bounds the list size without an arbitrary top-N cut.
+    Returns (all_names, price_by_name) from the trimmed activity catalog,
+    both keyed by casefolded name. all_names exists so unpriced activities
+    (free / unknown cost) still count as real catalog entries — matching
+    one is NOT a fabrication signal. price_by_name holds only the priced
+    subset, used for costing.
     """
-    return [t for t in trains if t.get("price", 0) > 0]
+    all_names: set[str] = set()
+    price_by_name: dict[str, float] = {}
+    for a in activities:
+        name = (a.get("name") or "").strip().casefold()
+        if not name:
+            continue
+        all_names.add(name)
+        price = a.get("est_price_inr")
+        if price is not None and price > 0:
+            price_by_name[name] = float(price)
+    return all_names, price_by_name
 
 
-def _compute_total_cost(itinerary: dict, log) -> float:
+def _match_activity(title: str, all_names: set[str]) -> str | None:
+    """
+    Exact name match first, then substring in either direction as a
+    fallback ('fort aguada visit' vs catalog 'fort aguada'). Returns the
+    matched CATALOG name (deduping happens on this, not on the event
+    title, so two title variants of the same activity count once), or
+    None when nothing matches.
+    """
+    if title in all_names:
+        return title
+    for name in all_names:
+        if name in title or title in name:
+            return name
+    return None
+
+
+def _scheduled_activities_cost(
+    itinerary: dict, activities: list[dict], log
+) -> tuple[float, list[str]]:
+    """
+    Sums est_price_inr for each DISTINCT activity scheduled in the itinerary's
+    day events — deduped on the matched CATALOG name, so the same activity
+    under two title variants still counts exactly once.
+
+    An event that matches no catalog entry is logged as a warning — that
+    is a fabrication signal worth surfacing — and contributes 0 rather
+    than crashing the build. A matched activity with no price also
+    contributes 0 (free or unknown), and is NOT a warning.
+
+    Returns (cost, unmatched_titles).
+    """
+    all_names, price_by_name = _activity_lookup(activities)
+
+    total = 0.0
+    counted: set[str] = set()
+    unmatched: list[str] = []
+
+    for day in itinerary.get("days", []):
+        for event in day.get("events", []):
+            if event.get("type") != "activity":
+                continue
+            title = (event.get("title") or "").strip().casefold()
+            if not title:
+                continue
+
+            matched_name = _match_activity(title, all_names)
+            if matched_name is None:
+                unmatched.append(event.get("title", ""))
+                continue
+            if matched_name in counted:
+                continue
+            counted.add(matched_name)
+            total += price_by_name.get(matched_name, 0.0)
+
+    if unmatched:
+        log.warning(
+            "_scheduled_activities_cost: %d scheduled activities matched nothing "
+            "in the catalog (possible fabrication): %s",
+            len(unmatched), unmatched,
+        )
+    return total, unmatched
+
+
+def _compute_total_cost(itinerary: dict, activities: list[dict], log) -> float:
     """
     Computes the real cost of what was actually chosen, replacing the
     LLM-authored total_cost field entirely (see locked design: the LLM
@@ -136,8 +215,11 @@ def _compute_total_cost(itinerary: dict, log) -> float:
     own selections).
 
     Reads chosen_transport (list, key "price"), chosen_car (dict or
-    None, key "total_price"), and chosen_hotel (dict, key "total_price").
-    Activities never contribute - no price field exists on them.
+    None, key "total_price"), chosen_hotel (dict, key "total_price"),
+    and the activity events scheduled in days (matched back to the
+    activity catalog by name, summed once per distinct activity, key
+    "est_price_inr"). Activities with no price — free or unknown —
+    contribute 0, same as before extraction existed.
 
     A missing/zero price on an entry that IS present is logged as a
     warning and treated as 0 in the sum, rather than raised - this is
@@ -177,6 +259,15 @@ def _compute_total_cost(itinerary: dict, log) -> float:
         )
         price = 0
     total += price
+
+    # Activities: summed from the distinct activity events scheduled in
+    # days, matched back to the catalog by name (see
+    # _scheduled_activities_cost). Free/unknown-price activities
+    # contribute 0 — same as before extraction existed.
+    activities_total, _unmatched = _scheduled_activities_cost(
+        itinerary, activities, log
+    )
+    total += activities_total
 
     return total
 
@@ -256,7 +347,8 @@ def itinerary_builder_node(state: TripState) -> dict:
 
         itinerary = response["parsed"].model_dump()
         itinerary["data_gaps"] = state["itinerary"].get("data_gaps", [])
-        itinerary["total_cost"] = _compute_total_cost(itinerary, log)
+        activities_for_cost = _trim(state.get("activities", []), _ACTIVITY_FIELDS)
+        itinerary["total_cost"] = _compute_total_cost(itinerary, activities_for_cost, log)
         log.info("Itinerary revised: %s", itinerary)
 
         return {"itinerary": itinerary, "status": "awaiting_review"}
@@ -293,6 +385,7 @@ def itinerary_builder_node(state: TripState) -> dict:
     hotels = hotels[:3]
     activities = activities[:8]
     # trains = _filter_priced_trains(trains)
+    activities = activities[: _ACTIVITY_CAP_BY_PACE.get(normalized_input["pace"], 10)]
 
     weather = _filter_weather_to_trip_dates(
         weather,
@@ -347,7 +440,7 @@ def itinerary_builder_node(state: TripState) -> dict:
         raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
 
     itinerary = response["parsed"].model_dump()
-    itinerary["total_cost"] = _compute_total_cost(itinerary, log)
+    itinerary["total_cost"] = _compute_total_cost(itinerary, activities, log)
     log.info("Itinerary built: %s", itinerary)
 
     itinerary["data_gaps"] = _collect_data_gaps(state, transport_modes)

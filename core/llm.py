@@ -8,8 +8,9 @@ AGENT_MAX_TOKENS: dict = {
     "concierge": 650,
     "planner": 700,
     "budget": 550,
-    "itinerary_builder": 5000,
+    "itinerary_builder": 3500,
     "critic": 800,
+    "activity_extraction": 2000,
 }
 
 
