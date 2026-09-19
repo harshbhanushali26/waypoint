@@ -1,7 +1,7 @@
 // Review page logic. Depends on app.js (API_BASE, apiRequest, fmtDate).
 
 const POLL_INTERVAL_MS = 2500;
-const MAX_POLL_ATTEMPTS = 24; // ~60s ceiling before surfacing a real error
+const MAX_POLL_ATTEMPTS = 48; // Increased from 24 to 48 (120s ceiling for search & Groq pacing)
 
 let tripId = null;
 let currentBudgetAnalysis = null;
@@ -169,18 +169,7 @@ async function confirmApprove() {
 
 // ---------- init ----------
 
-function init() {
-  tripId = getTripId();
-  if (!tripId) {
-    document.body.innerHTML = '<div class="shell"><div class="submit-error" style="display:block;">No trip ID found in the URL.</div></div>';
-    return;
-  }
-
-  loadItinerary().catch(err => {
-    document.getElementById('pageError').textContent = `Couldn't load your itinerary: ${err.message}`;
-    document.getElementById('pageError').style.display = 'block';
-  });
-
+function setupChatHandlers() {
   document.querySelectorAll('.quick-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       document.getElementById('chatInput').value = chip.dataset.text;
@@ -203,6 +192,42 @@ function init() {
   document.getElementById('approveBtn').addEventListener('click', showApproveConfirm);
   document.getElementById('cancelApproveBtn').addEventListener('click', hideApproveConfirm);
   document.getElementById('confirmApproveBtn').addEventListener('click', confirmApprove);
+}
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const sampleKey = params.get('sample');
+  tripId = getTripId();
+
+  // Mode 1: Instant load of static sample demo (?sample=goa)
+  if (sampleKey) {
+    try {
+      const res = await fetch(`samples/${encodeURIComponent(sampleKey)}.json`);
+      if (!res.ok) throw new Error('Sample fixture not found');
+      const data = await res.json();
+
+      currentBudgetAnalysis = data.budget_analysis;
+      renderTripHeader(data.itinerary, data.budget_analysis, { showSuggestionCta: true });
+      renderDays(data.itinerary);
+      setupChatHandlers();
+      return;
+    } catch (err) {
+      console.warn('Could not load sample fixture:', err);
+    }
+  }
+
+  // Mode 2: Live trip loading via API
+  if (!tripId) {
+    document.body.innerHTML = '<div class="shell"><div class="submit-error" style="display:block;">No trip ID found in the URL.</div></div>';
+    return;
+  }
+
+  loadItinerary().catch(err => {
+    document.getElementById('pageError').textContent = `Couldn't load your itinerary: ${err.message}`;
+    document.getElementById('pageError').style.display = 'block';
+  });
+
+  setupChatHandlers();
 }
 
 init();

@@ -1,0 +1,63 @@
+{
+  "trip_id": "sample-jaipur",
+  "status": "finalized",
+  "itinerary": {
+    "trip_summary": {
+      "destination": "Jaipur, India",
+      "start_date": "2026-12-05",
+      "end_date": "2026-12-07",
+      "num_travelers": 2
+    },
+    "chosen_transport": [
+      {"leg": "outbound", "mode": "train", "train_id": "12015-OUT", "train_name": "Ajmer Shatabdi Express", "departure_station_name": "New Delhi (NDLS)", "arrival_station_name": "Jaipur Jn (JP)", "departure_time": "06:10", "arrival_time": "10:40", "price": 2400},
+      {"leg": "return", "mode": "train", "train_id": "12016-RET", "train_name": "New Delhi Shatabdi Express", "departure_station_name": "Jaipur Jn (JP)", "arrival_station_name": "New Delhi (NDLS)", "departure_time": "17:50", "arrival_time": "22:30", "price": 2400}
+    ],
+    "chosen_hotel": {
+      "hotel_id": "HTL-JAI-01",
+      "name": "Alsisar Haveli Heritage Stay",
+      "rating": 4.7,
+      "total_price": 7200,
+      "check_in_time": "12:00",
+      "check_out_time": "11:00",
+      "latitude": 26.9248,
+      "longitude": 75.8016,
+      "thumbnail": "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&auto=format&fit=crop&q=80",
+      "amenities": ["Heritage Courtyard", "Pool", "Free Breakfast", "Wi-Fi"]
+    },
+    "days": [
+      {
+        "date": "2026-12-05",
+        "events": [
+          {"type": "transport", "time": "06:10", "title": "Train to Jaipur", "details": "Ajmer Shatabdi (12015) from NDLS, arrives at Jaipur Jn at 10:40."},
+          {"type": "hotel_checkin", "time": "12:00", "title": "Check in at Alsisar Haveli", "details": "Rest in restored Rajput heritage suites."},
+          {"type": "activity", "time": "14:30", "title": "City Palace & Jantar Mantar", "details": "Old City cluster — royal courtyards and ancient astronomical instruments. Stop by Lassiwala on MI Road."},
+          {"type": "activity", "time": "18:00", "title": "Hawa Mahal Facade & Johari Bazaar", "details": "Illuminated Palace of Winds and traditional textile shopping."}
+        ]
+      },
+      {
+        "date": "2026-12-06",
+        "events": [
+          {"type": "activity", "time": "09:30", "title": "Amer Fort & Palace", "details": "Amer cluster — massive hilltop fortress overlooking Maota Lake. Enjoy authentic Dal Baati Churma lunch nearby."},
+          {"type": "activity", "time": "14:30", "title": "Jaigarh Fort & Cannon Viewpoint", "details": "Views of the Aravalli hills and the world's largest wheeled cannon."},
+          {"type": "activity", "time": "17:30", "title": "Jal Mahal Sunset View", "details": "Scenic twilight photo stop at the Water Palace."}
+        ]
+      },
+      {
+        "date": "2026-12-07",
+        "events": [
+          {"type": "hotel_checkout", "time": "11:00", "title": "Check out of Alsisar Haveli", "details": "Luggage stored at desk."},
+          {"type": "activity", "time": "12:30", "title": "Albert Hall Museum & Gardens", "details": "Indo-Saracenic architecture and historic artifacts."},
+          {"type": "transport", "time": "17:50", "title": "Train to New Delhi", "details": "Shatabdi Express (12016), arrives at New Delhi (NDLS) at 22:30."}
+        ]
+      }
+    ],
+    "total_cost": 12000
+  },
+  "budget_analysis": {
+    "budget": 16000,
+    "estimated_total": 12000,
+    "over_budget": false,
+    "overage_amount": 0,
+    "suggestions": []
+  }
+}

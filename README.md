@@ -4,193 +4,187 @@
 
 ### ✨ Every Great Journey Starts with a Waypoint
 
-Waypoint is a multi-agent AI trip-planning system built for **India-based trips**. A user describes a trip through a structured form; a graph of LangGraph agents plans transport, lodging, activities, and budget; the system produces a day-by-day itinerary; and the user refines it through a chat-based review loop before finalizing.
+Waypoint is an autonomous multi-agent AI trip-planning system built specifically for **India-based domestic trips**. A traveler provides basic inputs (destination, dates, party size, budget, interests, and style); a coordinated graph of LangGraph agents plans transport, lodging, activities, weather, and budget feasibility; the system composes a realistic day-by-day itinerary; and the user refines it through an interactive chat-based review loop before finalizing.
 
 </div>
 
 **User flow (high level):**
 ```
-📝 Form fill → 🚀 Trip session starts → ⚙️ Planning runs → 💬 Human review (chat loop) → ✅ Final itinerary
+📝 Form fill → 🚀 Session initialized → ⚙️ Multi-agent planning & search → 💬 Human review loop → 📅 Finalized itinerary & .ics export
 ```
+
+---
 
 ## 🛠 Tech Stack
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Language | Python | |
-| Package manager | uv | |
-| Web framework | FastAPI | Endpoints for starting a trip, submitting review feedback, fetching itinerary status/result |
-| Orchestration | LangChain + LangGraph | First project using a framework instead of hand-rolled orchestration |
-| Schema/validation | Pydantic | Shared state schema flowing through the graph; API request/response models |
-| LLM providers | OpenAI, Groq | Groq (`openai/gpt-oss-120b`) as default; OpenAI used where needed |
-| Tool protocol | MCP | Staged in after dummy → free-API phases prove the graph |
-| Database | Postgres | Single instance, two roles: app tables + LangGraph checkpointer (Postgres from day 1 for V1) |
-| ORM / migrations | SQLAlchemy + Alembic | App tables: `trips`, `itineraries` |
-| Checkpointer | `langgraph-checkpoint-postgres` | Persists paused graph state at `human_review` so a session survives a refresh/restart |
-| Frontend | Plain HTML/CSS/JS | Served statically, no build step, no framework for v1 |
-| Font | Satoshi | Via Fontshare CDN |
+| Language | Python 3.12 | Modern type hinting, async I/O where needed |
+| Package Manager | uv | Ultra-fast dependency resolution and virtual environments |
+| Web Framework | FastAPI | Async endpoints for trip orchestration, polling, and revision chat |
+| Multi-Agent Graph | LangGraph + LangChain | Directed stateful graph with checkpointers and conditional branches |
+| Schema / Validation | Pydantic v2 | Strict JSON schema generation for structured outputs and state contracts |
+| LLM Provider | Groq | **Multi-tier model routing** to strictly respect Groq's 8,000 TPM limit |
+| Database | PostgreSQL | App entities (`trips`, `itineraries`) + LangGraph state checkpointer |
+| ORM & Migrations | SQLAlchemy 2.0 + Alembic | Asynchronous and synchronous DB sessions |
+| Checkpointer | `langgraph-checkpoint-postgres` | Persists execution state at `human_review` across browser refreshes |
+| Frontend | Vanilla HTML5 / CSS3 / JS | Zero-build, lightweight, fast client-side rendering |
+| Font & Icons | Satoshi | Clean modern typography via Fontshare CDN |
 
-## 🔌 External APIs
+---
 
-Five real-API integrations are wired up across the tool nodes. Cars and buses are deferred for now.
+## 🧠 Multi-Model & TPM Optimization Architecture
 
-| Tool node | Provider | Scope | Notes |
+To prevent HTTP 429 rate-limit starvation on Groq's 8,000 TPM free tier, Waypoint implements an intelligent **multi-tier model strategy**:
+
+```mermaid
+flowchart TD
+    subgraph Fast & Cost-Effective Tier ["⚡ Fast & Cheap Tier (openai/gpt-oss-20b)"]
+        A[Concierge Agent]
+        B[Planner Agent]
+        C[search_activities Extraction Pass]
+        D[Budget Agent]
+    end
+
+    subgraph High-Capacity Reasoning Tier ["🧠 High-Reasoning Tier (openai/gpt-oss-120b)"]
+        E[Itinerary Builder Agent]
+        F[Critic / Revision Agent]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+```
+
+1. **Fast Tier (`openai/gpt-oss-20b`)**: Handles canonicalization, mode prioritization, budget floor math, and listicle extraction.
+2. **Reasoning Tier (`openai/gpt-oss-120b`)**: Reserved strictly for high-context tasks requiring deep chronological scheduling, day-splitting, and natural language revision interpretation.
+3. **Reasoning Control**: Bounded `reasoning_effort="low"` and right-sized `AGENT_MAX_TOKENS` prevent runaway reasoning chains from exhausting token budgets.
+4. **Native Schema Validation**: All calls use `method="json_schema"` with explicit one-shot examples, completely eliminating Groq `json_validate_failed` and backtick formatting errors.
+
+---
+
+## 🔌 Tool Integrations & Mechanical Data Fetching
+
+Tool nodes are strictly mechanical and fail loud (returning structured diagnostic notes rather than silent empty lists). Car and bus modes are intentionally deferred to prioritize flight and rail coverage.
+
+| Tool Node | Provider | Scope | Engineering Highlights |
 |---|---|---|---|
-| `search_flights` | SerpApi | Flights | Google Flights results via SerpApi |
-| `search_hotels` | SerpApi | Hotels | Google Hotels results via SerpApi |
-| `search_trains` | RailRadar | Trains | Live train search; station resolution strips country suffix before dict lookup; trains with `price <= 0` are filtered out before prompt assembly to prevent 413 payload errors |
-| `search_activities` | Tavily | Activities / points of interest | |
-| `get_weather` | Open-Meteo | Forecast for trip dates | |
-| `search_buses` | ⏳ Deferred | — | Stub remains; not wired to a real API yet |
-| `search_cars` | ⏳ Deferred | — | Stub remains; not wired to a real API yet |
+| `search_flights` | SerpApi | Flights | Google Flights engine; resolves IATA codes via auto-stripped city names; multi-passenger group aggregate pricing; extracts aircraft models and booking tokens. |
+| `search_trains` | RailRadar | Trains | Real-time Indian Railways schedules and fare breakdowns; group fare calculation (`base_fare * num_travelers`); RailRadar autocomplete fallback with in-memory caching; 6s throttle with 429 circuit-breaker. |
+| `search_hotels` | SerpApi | Hotels | Google Hotels engine; location and budget-tier filtering for quality stays. |
+| `search_activities` | Tavily + LLM | Points of interest | Fast Tavily basic search merged and deduped, followed by discrete activity extraction via fast LLM tier. |
+| `get_weather` | Open-Meteo | Forecasts | **16-day live forecast horizon**; 2-tier geocoding (`admin1` vs `name`) to accurately resolve Indian states (Goa, Kerala); seasonal climate estimate fallback for trips >16 days. |
+| `search_buses` | ⏳ Deferred | Buses | Stubs preserved; deferred in Planner to focus on core rail & flight routing. |
+| `search_cars` | ⏳ Deferred | Rental cars | Stubs preserved; deferred in Planner. |
 
-## 🤖 Agents
+*All external HTTP tools are wrapped with `tenacity` exponential backoff retries for transient failure resilience.*
 
-| Agent | Description |
-|---|---|
-| `Concierge` | Takes the raw trip form input and turns it into clean, validated state. Enforces a hard trip-length cap before any LLM call. |
-| `Planner` | Decides what to search, and in what priority order, based on the normalized input and budget. |
-| `Budget` | Sums total planned cost against the user's stated budget. |
-| `Itinerary` | Composes the day-by-day plan from every tool node's results plus the budget analysis. Runs in two modes: build (initial pass) and revise (targeted edits during review). |
-| `Critic` | Reads the latest user message during human_review, interprets the edit request, and routes directly to whichever node(s) actually need to re-run. |
+---
 
-## 🔎 Tools
-
-Seven tool nodes, mechanical (no LLM calls). All tool nodes **fail loud** — on error they return a structured error dict instead of silently swallowing failures, and any data gaps they encounter are collected into a `data_gaps` list so the Itinerary Builder can surface them to the user.
-
-| Node | Fetches | Status |
-|---|---|---|
-| `search_flights` | Flight options | ✅ SerpApi |
-| `search_trains` | Train options | ✅ RailRadar |
-| `search_buses` | Bus options | ⏳ Deferred |
-| `search_cars` | Rental car options | ⏳ Deferred |
-| `search_hotels` | Hotel options | ✅ SerpApi |
-| `search_activities` | Activities / points of interest | ✅ Tavily |
-| `get_weather` | Forecast for the trip dates | ✅ Open-Meteo |
-
-Shared constants (station code maps, currency codes, etc.) live in `tools/_constants.py`.
-
-## 📊 Graph Diagram
+## 🤖 Agents & Roles
 
 ```mermaid
 graph TD
     A[Concierge Agent] --> B[Planner Agent]
     B --> C1[search_flights]
     B --> C2[search_trains]
-    B --> C3[search_buses]
-    B --> C4[search_cars]
-    B --> C5[search_hotels]
-    B --> C6[search_activities]
-    B --> C7[get_weather]
+    B --> C3[search_hotels]
+    B --> C4[search_activities]
+    B --> C5[get_weather]
     C1 --> D[Budget Agent]
     C2 --> D
     C3 --> D
     C4 --> D
     C5 --> D
-    C6 --> D
-    C7 --> D
     D --> E[Itinerary Builder Agent]
     E --> F{human_review}
-    F -- approved --> G[Finalize]
-    F -- edit requested --> H[Critic / Revision Agent]
-    H -- targeted re-run --> I[Specific node: e.g. search_hotels]
+    F -- Approved --> G[Finalize]
+    F -- Edit Requested --> H[Critic / Revision Agent]
+    H -- Targeted Re-run --> I[Specific Node: e.g. search_hotels]
     I --> D
 ```
 
-## 📋 State Schema (TripState)
-
-`TypedDict`, single source of truth for the graph. Separate top-level keys
-per tool result (not a grouped dict) — required for write-safety during the
-parallel fan-out.
-
-| Field | Type | Notes |
-|---|---|---|
-| `trip_id` | str | |
-| `destination` | str | Single destination only for V1 |
-| `origin_city` | str | Shared by all travelers |
-| `start_date` / `end_date` | date | |
-| `budget` | float | |
-| `currency` | str | |
-| `num_travelers` | int | |
-| `interests` | list[str] | |
-| `transport_pref` | str | `"flights"` / `"trains"` / `"buses"` / `"cars"` / `"any"` — single-select |
-| `wants_rental_car` | bool | Independent add-on for local mobility; effectively redundant if `transport_pref` is `"cars"` |
-| `pace` | str | `"relaxed"` / `"moderate"` / `"packed"` |
-| `normalized_input` | dict | Concierge Agent output |
-| `search_plan` | dict | Planner Agent output |
-| `flights` | list[dict] | `search_flights` output |
-| `trains` | list[dict] | `search_trains` output |
-| `buses` | list[dict] | `search_buses` output |
-| `cars` | list[dict] | `search_cars` output |
-| `hotels` | list[dict] | `search_hotels` output |
-| `activities` | list[dict] | `search_activities` output |
-| `weather` | list[dict] | `get_weather` output |
-| `budget_analysis` | dict | Budget Agent output |
-| `itinerary` | dict | Itinerary Builder Agent output |
-| `critic_analysis` | dict | Critic Agent output — logging only |
-| `approved` | bool | Drives the `human_review` conditional branch |
-| `messages` | `Annotated[list, add_messages]` | Single source of truth for review-loop chat |
-| `status` | str | Current node name, drives frontend progress UI |
-
-## 🖥 Frontend
-
-Plain HTML/CSS/JS, no framework, no build step. Four pages covering the full
-user flow end to end:
-
-| Page | Purpose |
+| Agent | Responsibilities |
 |---|---|
-| `landing.html` | Landing page introducing Waypoint and routing users into the trip wizard |
-| `form.html` | 3-card trip wizard (Destination & Dates, Travel Style, Budget) + a review step before submitting |
-| `planning.html` | Polls trip status and shows live graph node progress as a step list |
-| `review.html` | Day-by-day itinerary + chat panel for edits, quick-action chips, approve flow |
-| `final.html` | Read-only finalized itinerary with download (.txt) and copy-link actions |
+| `Concierge` | Validates and canonicalizes raw form inputs into standardized formats (`"Mumbai, India"`). Replaced multi-round interrupt loops with deterministic one-pass normalization. |
+| `Planner` | Decides transport modes and budget tier (`tight`, `balanced`, `luxury`). Deferrals keep searches lean. |
+| `Budget` | Evaluates group transport totals against accommodation and activities to establish a conservative feasibility floor. |
+| `Itinerary Builder` | Synthesizes tool outputs into day-by-day chronological events. Enforces early-morning arrival check-ins, pace density, and authentic place naming. |
+| `Critic` | Parses user feedback during review, determining whether to trigger targeted data refetches (e.g. new hotel) or pure in-memory itinerary rearrangement. |
 
-Shared `css/style.css` (design tokens + components) and `js/app.js` (API
-base URL, fetch wrapper, date formatting) are used across all four pages;
-each page also has its own thin `<page>.js` for page-specific logic.
-`js/itinerary-render.js` is shared specifically between `review.html` and
-`final.html`, since both render the same day-card/event structure.
+---
 
-Verified end to end against the live backend, including an edit-path request
-that correctly routed through the Critic to a specific tool node
-(`search_hotels`), re-ran Budget and the Itinerary Builder in revise mode,
-and landed back at `awaiting_review` with an updated itinerary.
+## 🖥 Frontend Features & UI Enhancements
 
-## ✅ What's Working
+The client interface is completely dependency-free, modern, and mobile-responsive:
 
-The following components have been completed and verified end to end:
+1. **Interactive Route & Destination Maps**: Embedded interactive mapping (`frontend/js/map-render.js`) visualizing transit paths and scheduled activity clusters.
+2. **1-Click Calendar Export (`.ics`)**: Client-side iCalendar generator (`frontend/js/calendar-export.js`) allowing travelers to sync their finalized trip directly into Google Calendar, Apple Calendar, or Outlook.
+3. **Context-Aware Wikipedia Imagery**: High-relevance Wikipedia photo matching in `itinerary-render.js` with smart heuristic filters excluding SVG diagrams, locator maps, and flag icons.
+4. **Layout Grid Fixes**: Fixed CSS grid layout between the day timeline and interactive sticky map container; resolved price overlap bugs in the trip summary card.
+5. **Offline Demo / Sample Packages**: Pre-built static itinerary samples (`frontend/samples/`) enabling instant design testing and UI demos without consuming API quota.
 
-- **Environment and tooling** — uv, Python 3.12, Docker Postgres
-- **Database layer** — SQLAlchemy models, Alembic migrations, and checkpointer tables
-- **State schema** — `TripState` defined and integrated
-- **Tool node integrations** — 5 of 7 tool nodes wired to real APIs:
-  - SerpApi (flights, hotels)
-  - RailRadar (trains)
-  - Tavily (activities)
-  - Open-Meteo (weather)
-- **Error handling** — fail-loud error returns on all tool nodes with `data_gaps` collection
-- **Station resolution fix** — country-suffix stripping before dictionary lookup
-- **Train pricing filter** — `price > 0` guard before prompt assembly to prevent 413 errors
-- **Trip-length cap guard** — enforced in the Concierge node before any LLM call
-- **Token budget tuning** — `AGENT_MAX_TOKENS` right-sized based on observed Groq token usage and TPM limits
-- **Reasoning agents** — all 5 agents implemented, with Command-based Critic routing
-- **Graph wiring** — `StateGraph` fully wired with human-review interrupt and checkpointer; the approve path, edit-request path, and invalid-target error path have all been tested
-- **FastAPI layer** — endpoints implemented and tested against the live graph:
-  - `POST /trips`
-  - `GET /trips/{id}/status`
-  - `GET /trips/{id}/itinerary`
-  - `POST /trips/{id}/review` (approve and edit flows tested)
-- **Frontend** — all 4 pages built and tested end to end against the live backend
-- **Testing utilities** — per-tool integration test harnesses and debug scripts under `scripts/`
-- **Logging** — structured logging implemented in agents and tools
+---
 
-## 🔜 Future Work
+## 📋 State Schema (`TripState`)
 
-The following items are outstanding:
+A unified `TypedDict` that flows through every node in the graph:
 
-- 🛣️ **Activity messy input** — currenyly the activities messy input is feeded to LLM but later will structure it for proper itineraries.
-- 🚌 **`search_buses` real API integration** — currently a stub; the dummy data returns hardcoded dates regardless of the trip dates and needs to be made date-aware before it is demo-ready
-- 🚗 **`search_cars` real API integration** — currently a stub
-- 🔌 **MCP tools stage** — not yet started
-- 🔄 **Substitution-type edits in revise mode** — e.g. "cheaper hotel" or "swap to train"; this requires the reviser to receive a fuller data slice than just the previous itinerary
-- 📝 **Miscellaneous decisions and issues** — several minor open items beyond those listed above
+```python
+class TripState(TypedDict):
+    # Form Inputs
+    trip_id: str
+    destination: str
+    origin_city: str
+    start_date: str
+    end_date: str
+    budget: float
+    currency: str
+    num_travelers: int
+    interests: list[str]
+    transport_pref: str        # "flights", "trains", "any"
+    wants_rental_car: bool
+    pace: str                  # "relaxed", "moderate", "packed"
+
+    # Agent & Tool Outputs
+    normalized_input: dict
+    search_plan: dict
+    flights: list[dict]
+    trains: list[dict]
+    buses: list[dict]
+    cars: list[dict]
+    hotels: list[dict]
+    activities: list[dict]
+    weather: list[dict]
+    budget_analysis: dict
+    itinerary: dict
+    critic_analysis: dict
+
+    # Review Loop & UI
+    approved: bool
+    messages: Annotated[list, add_messages]
+    status: str
+```
+
+---
+
+## ✅ What's Working & Verified
+
+- **Multi-Model Routing**: Fast tier (20B) and reasoning tier (120B) running without Groq 429 rate-limit interruptions.
+- **Group Budget Parity**: Multi-passenger train fares now correctly match group flight and hotel costs.
+- **Reliable Geocoding & Weather**: 16-day Open-Meteo forecasts with state/city 2-tier resolution.
+- **Fail-Loud Resilience**: Tenacity retries on all network calls with clear fallback diagnostic notes.
+- **Streamlined Concierge**: Single-pass input normalization without blocking interrupt halts.
+- **Interactive UI**: Working calendar `.ics` download, interactive map views, and verified Wikipedia image rendering.
+- **Offline Backend Test Suite**: Automated 8/8 test suite (`tests/test_backend_offline.py`) verifying state transitions and tool handling offline.
+
+---
+
+## 🔜 Future Roadmap
+
+- 🚌 **Bus API Integration (`search_buses`)**: Wire to live Indian bus booking APIs (e.g. RedBus/AbhiBus aggregators).
+- 🚗 **Rental Car Integration (`search_cars`)**: Connect self-drive mobility providers (e.g. Zoomcar).
+- 🔌 **Model Context Protocol (MCP)**: Wrap tool endpoints as standardized MCP servers.
+- 🔁 **Deep Substitution in Review Mode**: Enable specific component swapping (e.g. "Keep hotel, but upgrade train to 2nd AC").

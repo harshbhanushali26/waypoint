@@ -42,3 +42,9 @@ if (dayTabs.length) {
   });
 }
 
+// frontend/js/landing.js
+
+function loadSample(destinationKey) {
+  // Routes directly to final view with pre-loaded demo data
+  window.location.href = `final.html?sample=${destinationKey}`;
+}

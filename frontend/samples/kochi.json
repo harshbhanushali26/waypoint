@@ -1,0 +1,68 @@
+{
+  "trip_id": "sample-kochi",
+  "status": "finalized",
+  "itinerary": {
+    "trip_summary": {
+      "destination": "Kochi, India",
+      "start_date": "2026-11-15",
+      "end_date": "2026-11-18",
+      "num_travelers": 2
+    },
+    "chosen_transport": [
+      {"leg": "outbound", "mode": "flight", "flight_id": "AI-512", "airline": "Air India", "departure_airport_name": "Bengaluru (BLR)", "arrival_airport_name": "Kochi (COK)", "departure_time": "09:00", "arrival_time": "10:15", "price": 3800},
+      {"leg": "return", "mode": "flight", "flight_id": "AI-519", "airline": "Air India", "departure_airport_name": "Kochi (COK)", "arrival_airport_name": "Bengaluru (BLR)", "departure_time": "18:30", "arrival_time": "19:45", "price": 4100}
+    ],
+    "chosen_hotel": {
+      "hotel_id": "HTL-COK-01",
+      "name": "Brunton Boatyard - CGH Earth",
+      "rating": 4.8,
+      "total_price": 11500,
+      "check_in_time": "14:00",
+      "check_out_time": "11:00",
+      "latitude": 9.9678,
+      "longitude": 76.2425,
+      "thumbnail": "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&auto=format&fit=crop&q=80",
+      "amenities": ["Harbour View", "Eco-friendly", "Ayurvedic Spa", "Free Breakfast"]
+    },
+    "days": [
+      {
+        "date": "2026-11-15",
+        "events": [
+          {"type": "transport", "time": "09:00", "title": "Flight to Kochi", "details": "Air India AI-512 from BLR, arrives at Cochin (COK) at 10:15."},
+          {"type": "hotel_checkin", "time": "14:00", "title": "Check in at Brunton Boatyard", "details": "Colonial maritime heritage hotel overlooking the harbor."},
+          {"type": "activity", "time": "16:00", "title": "Chinese Fishing Nets & Fort Kochi Beach", "details": "Iconic cantilevers dating back to the 14th century. Sunset walk and fresh seafood at street vendors."}
+        ]
+      },
+      {
+        "date": "2026-11-16",
+        "events": [
+          {"type": "activity", "time": "09:30", "title": "Mattancherry Palace & Dutch Museum", "details": "Featuring exquisite Kerala murals depicting the Ramayana."},
+          {"type": "activity", "time": "11:45", "title": "Jew Town & Paradesi Synagogue", "details": "Oldest active synagogue in the Commonwealth and antique spice market. Savor Kerala Parotta with beef/veg roast."},
+          {"type": "activity", "time": "18:00", "title": "Kathakali Performance at Kerala Cultural Centre", "details": "Live classical dance-drama with traditional makeup ritual demonstration."}
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "events": [
+          {"type": "activity", "time": "08:30", "title": "Alleppey Backwaters Day Excursion", "details": "Private day cruise on a traditional thatched houseboat through palm-fringed canals with Karimeen lunch."}
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "events": [
+          {"type": "hotel_checkout", "time": "11:00", "title": "Check out of Brunton Boatyard", "details": "Settle bills and luggage hold."},
+          {"type": "activity", "time": "13:00", "title": "Marine Drive Promenade & Shopping", "details": "Tea and Kerala spice shopping near Broadway."},
+          {"type": "transport", "time": "18:30", "title": "Flight to Bengaluru", "details": "Air India AI-519 from COK, arrives at BLR at 19:45."}
+        ]
+      }
+    ],
+    "total_cost": 19400
+  },
+  "budget_analysis": {
+    "budget": 28000,
+    "estimated_total": 19400,
+    "over_budget": false,
+    "overage_amount": 0,
+    "suggestions": []
+  }
+}

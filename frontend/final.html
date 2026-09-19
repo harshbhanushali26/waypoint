@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -40,6 +42,7 @@
         <div class="label">Total cost</div>
       </div>
     </div>
+    <div class="cost-breakdown-bar" id="costBreakdownBar"></div>
     <div class="budget-flag" id="budgetFlag"></div>
     <div class="data-gap-notice" id="dataGapsNotice" style="display:none;"></div>
   </div>
@@ -52,8 +55,13 @@
       Download itinerary
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
     </button>
+    <button class="btn-pill btn-secondary-pill" id="calExportBtn">
+  Add to Calendar (.ics)
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+</button>
   </div>
 
+  <div id="mapContainer" class="itinerary-map"></div>
   <div id="dayCards"></div>
 
   <a href="form.html" class="btn-ghost-link" style="margin-top:8px;">Start a new trip</a>
@@ -61,7 +69,9 @@
 </div>
 
 <script src="js/app.js"></script>
-<script src="js/itinerary-render.js"></script>
-<script src="js/final.js"></script>
+<script src="js/map-render.js?v=2"></script>
+<script src="js/calendar-export.js"></script>
+<script src="js/itinerary-render.js?v=2"></script>
+<script src="js/final.js?v=2"></script>
 </body>
 </html>

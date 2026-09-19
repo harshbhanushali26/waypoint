@@ -1,0 +1,70 @@
+{
+  "trip_id": "sample-goa",
+  "status": "finalized",
+  "itinerary": {
+    "trip_summary": {
+      "destination": "Goa, India",
+      "start_date": "2026-11-10",
+      "end_date": "2026-11-13",
+      "num_travelers": 2
+    },
+    "chosen_transport": [
+      {"leg": "outbound", "mode": "flight", "flight_id": "6E-215", "airline": "IndiGo", "departure_airport_name": "Mumbai (BOM)", "arrival_airport_name": "Goa (GOI)", "departure_time": "08:15", "arrival_time": "09:30", "price": 4200},
+      {"leg": "return", "mode": "flight", "flight_id": "6E-348", "airline": "IndiGo", "departure_airport_name": "Goa (GOI)", "arrival_airport_name": "Mumbai (BOM)", "departure_time": "19:40", "arrival_time": "21:00", "price": 4600}
+    ],
+    "chosen_hotel": {
+      "hotel_id": "HTL-GOA-01",
+      "name": "Seaside Palms Beach Resort",
+      "rating": 4.6,
+      "total_price": 9500,
+      "check_in_time": "13:00",
+      "check_out_time": "11:00",
+      "latitude": 15.5526,
+      "longitude": 73.7517,
+      "thumbnail": "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&auto=format&fit=crop&q=80",
+      "amenities": ["Beachfront", "Pool", "Free Breakfast", "Wi-Fi"]
+    },
+    "days": [
+      {
+        "date": "2026-11-10",
+        "events": [
+          {"type": "transport", "time": "08:15", "title": "Flight to Goa", "details": "IndiGo 6E-215 from Mumbai, arrives at Dabolim (GOI) at 09:30."},
+          {"type": "hotel_checkin", "time": "13:00", "title": "Check in at Seaside Palms Beach Resort", "details": "Settle into beachfront rooms and relax."},
+          {"type": "activity", "time": "15:30", "title": "Fort Aguada", "details": "North Goa cluster — 17th-century Portuguese fortress overlooking Sinquerim Beach. Try traditional Goan fish thali at a local shack."},
+          {"type": "activity", "time": "18:00", "title": "Anjuna Beach Sunset & Market", "details": "Sunset views with beachside cafes and live music."}
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "events": [
+          {"type": "activity", "time": "10:00", "title": "Basilica of Bom Jesus & Old Goa", "details": "UNESCO World Heritage site with baroque architecture."},
+          {"type": "activity", "time": "13:00", "title": "Fontainhas Latin Quarter Walk", "details": "Colorful heritage villas in Panaji. Stop by Cafe Bhonsle for local Goan snacks."},
+          {"type": "activity", "time": "17:00", "title": "Mandovi River Evening Cruise", "details": "Scenic 1-hour sunset cruise with Goan folk performances."}
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "events": [
+          {"type": "activity", "time": "10:30", "title": "Sahakari Spice Plantation Tour", "details": "Guided botanical walk through tropical spice gardens with authentic Goan buffet lunch."},
+          {"type": "activity", "time": "16:00", "title": "Vagator Beach & Chapora Fort", "details": "Panoramic coastal cliffs and evening cafe hopping."}
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "events": [
+          {"type": "hotel_checkout", "time": "11:00", "title": "Check out of Seaside Palms Resort", "details": "Store luggage at reception."},
+          {"type": "activity", "time": "13:00", "title": "Panaji City Center & Souvenirs", "details": "Cashew shopping and lunch at Ritz Classic."},
+          {"type": "transport", "time": "19:40", "title": "Flight to Mumbai", "details": "IndiGo 6E-348, arrives at Mumbai (BOM) at 21:00."}
+        ]
+      }
+    ],
+    "total_cost": 18300
+  },
+  "budget_analysis": {
+    "budget": 25000,
+    "estimated_total": 18300,
+    "over_budget": false,
+    "overage_amount": 0,
+    "suggestions": []
+  }
+}

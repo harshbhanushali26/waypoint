@@ -1,0 +1,62 @@
+{
+  "trip_id": "sample-varanasi",
+  "status": "finalized",
+  "itinerary": {
+    "trip_summary": {
+      "destination": "Varanasi, India",
+      "start_date": "2026-11-20",
+      "end_date": "2026-11-22",
+      "num_travelers": 2
+    },
+    "chosen_transport": [
+      {"leg": "outbound", "mode": "train", "train_id": "22436-OUT", "train_name": "Vande Bharat Express", "departure_station_name": "New Delhi (NDLS)", "arrival_station_name": "Varanasi Jn (BSB)", "departure_time": "06:00", "arrival_time": "14:00", "price": 3500},
+      {"leg": "return", "mode": "train", "train_id": "22435-RET", "train_name": "Vande Bharat Express", "departure_station_name": "Varanasi Jn (BSB)", "arrival_station_name": "New Delhi (NDLS)", "departure_time": "15:00", "arrival_time": "23:00", "price": 3500}
+    ],
+    "chosen_hotel": {
+      "hotel_id": "HTL-VNS-01",
+      "name": "BrijRama Palace Heritage on Ghats",
+      "rating": 4.8,
+      "total_price": 8200,
+      "check_in_time": "14:30",
+      "check_out_time": "11:00",
+      "latitude": 25.3056,
+      "longitude": 83.0104,
+      "thumbnail": "https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=800&auto=format&fit=crop&q=80",
+      "amenities": ["Riverside Ghat View", "Boat Access", "Pure Veg Dining", "Wi-Fi"]
+    },
+    "days": [
+      {
+        "date": "2026-11-20",
+        "events": [
+          {"type": "transport", "time": "06:00", "title": "Vande Bharat Train to Varanasi", "details": "High-speed 22436 from NDLS, arrives at Varanasi Jn at 14:00."},
+          {"type": "hotel_checkin", "time": "15:00", "title": "Check in at BrijRama Palace", "details": "Traditional boat transfer to the Ghats."},
+          {"type": "activity", "time": "17:30", "title": "Ganga Aarti at Dashashwamedh Ghat", "details": "Mesmerizing evening prayer ceremony viewed from river steps or boat. Try famous Varanasi Tamatar Chaat afterward."}
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "events": [
+          {"type": "activity", "time": "05:45", "title": "Sunrise Boat Ride along the Ghats", "details": "Peaceful dawn rowboat gliding past Assi, Manikarnika, and Scindia Ghats."},
+          {"type": "activity", "time": "09:00", "title": "Kashi Vishwanath Temple Corridor", "details": "Darshan at one of India's most sacred Jyotirlinga shrines. Taste fresh kachori sabzi at Ram Bhandar."},
+          {"type": "activity", "time": "14:00", "title": "Sarnath Excursion & Deer Park", "details": "Ancient Buddhist archaeological site where Lord Buddha delivered his first sermon. Dhamek Stupa."}
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "events": [
+          {"type": "hotel_checkout", "time": "11:00", "title": "Check out of BrijRama Palace", "details": "Boat transfer back to Godowlia crossing."},
+          {"type": "activity", "time": "12:00", "title": "Banarasi Silk Weaving Village & Lassi", "details": "Observe authentic handloom saree weaving and enjoy Blue Lassi."},
+          {"type": "transport", "time": "15:00", "title": "Vande Bharat Train to New Delhi", "details": "Train 22435, arrives at New Delhi (NDLS) at 23:00."}
+        ]
+      }
+    ],
+    "total_cost": 15200
+  },
+  "budget_analysis": {
+    "budget": 20000,
+    "estimated_total": 15200,
+    "over_budget": false,
+    "overage_amount": 0,
+    "suggestions": []
+  }
+}

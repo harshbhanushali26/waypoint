@@ -1,9 +1,8 @@
 """
-search_flights — free-API stage (SerpApi Google Flights)
+tools/search_flights.py
 
-Mechanical tool node: no LLM calls. Fails loud — on any failure returns
-{"flights": [], "flights_note": "..."} rather than silently substituting
-dummy data, so degraded state is always visible in TripState.
+Free-API flight stage using SerpApi Google Flights.
+Mechanical tool node: no LLM calls. Fails loud with structured notes on errors.
 """
 
 import logging
@@ -14,7 +13,6 @@ from core.config import settings
 from tools._constants import resolve_airport
 from core.logging import get_trip_logger
 
-
 logger = logging.getLogger(__name__)
 SERPAPI_BASE = "https://serpapi.com/search"
 
@@ -23,16 +21,14 @@ class FlightsAPIError(Exception):
     """Raised when SerpApi returns an explicit error or no usable flight data."""
 
 
-# ── Fetch ────────────────────────────────────────────────────────────────
-
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type(httpx.HTTPError),  # only retry transient network failures
+    retry=retry_if_exception_type(httpx.HTTPError),
     reraise=True,
 )
 def _fetch_flights(params: dict) -> list[dict]:
-    """Calls SerpApi Google Flights, returns combined best+other flights."""
+    """Calls SerpApi Google Flights, returns combined best + other flights."""
     response = httpx.get(SERPAPI_BASE, params=params, timeout=30)
     response.raise_for_status()
     data = response.json()
@@ -47,10 +43,8 @@ def _fetch_flights(params: dict) -> list[dict]:
     return all_flights
 
 
-# ── Normalize ────────────────────────────────────────────────────────────
-
 def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
-    """Converts one SerpApi flight object into Waypoint's flat flight dict."""
+    """Converts a SerpApi flight dictionary into Waypoint's flat schema."""
     flight_segments = raw.get("flights", [])
     first_segment = flight_segments[0] if flight_segments else {}
     last_segment = flight_segments[-1] if flight_segments else {}
@@ -63,13 +57,6 @@ def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
     ) or "N/A"
 
     airline = first_segment.get("airline", "Unknown")
-
-    # flight_id must distinguish every real option the itinerary builder
-    # sees. Full flight_number (never truncated) covers same-first-leg /
-    # different-connection cases (e.g. "AI 2848, AI 2745" vs
-    # "AI 2848, IX 1242" - previously collided when both were cut to
-    # "AI 284"). direction is prefixed on top as a second axis, covering
-    # same flight_number appearing on both outbound and return legs.
     flight_id = f"{direction}-{flight_number}" if flight_number != "N/A" else "N/A"
 
     return {
@@ -85,7 +72,7 @@ def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
         "arrival_time": arr.get("time", ""),
         "duration_minutes": raw.get("total_duration") or raw.get("duration", 0),
         "stops": len(flight_segments) - 1 if flight_segments else 0,
-        "price": float(raw.get("price", 0)),
+        "price": float(raw.get("price", 0)),  # Google Flights aggregate price for all travelers
         "currency": currency,
         "airplane": first_segment.get("airplane", ""),
         "carbon_emissions_grams": raw.get("carbon_emissions", {}).get("this_flight", 0),
@@ -93,12 +80,8 @@ def _normalize_flight(raw: dict, direction: str, currency: str) -> dict:
     }
 
 
-# ── Node entry point ─────────────────────────────────────────────────────
-
 def search_flights(state: dict) -> dict:
-    """
-    Tool node entry point. Fails loud on any problem — no dummy fallback.
-    """
+    """Tool node entry point for StateGraph."""
     log = get_trip_logger(logger, state.get("trip_id", "-"))
 
     if "flights" not in state.get("search_plan", {}).get("transport_modes", []):
@@ -109,8 +92,11 @@ def search_flights(state: dict) -> dict:
         log.warning("search_flights: SERPAPI_FLIGHTS_KEY not configured")
         return {"flights": [], "flights_note": "SERPAPI_FLIGHTS_KEY not configured."}
 
-    origin = resolve_airport(state.get("origin_city", ""))
-    destination = resolve_airport(state.get("destination", ""))
+    # Automatically stripped & resolved via _constants.py
+    normalized = state.get("normalized_input") or {}
+    origin = resolve_airport(normalized.get("origin_city") or state.get("origin_city", ""))
+    destination = resolve_airport(normalized.get("destination") or state.get("destination", ""))
+
     start_date = state.get("start_date", "")
     end_date = state.get("end_date", "")
     num_travelers = state.get("num_travelers", 1)
@@ -129,17 +115,23 @@ def search_flights(state: dict) -> dict:
             "currency": currency,
             "hl": "en",
             "gl": "in",
-            "adults": str(num_travelers),
+            "adults": str(max(num_travelers, 1)),
             "type": "2",
             "api_key": settings.serpapi_flights_key,
         }
-        log.debug("search_flights: fetching outbound %s -> %s on %s", origin, destination, start_date)
+
+        log.debug("search_flights: outbound %s -> %s on %s", origin, destination, start_date)
         raw_outbound = _fetch_flights(outbound_params)
         flights = [_normalize_flight(f, "outbound", currency) for f in raw_outbound]
 
         if end_date and end_date != start_date:
-            return_params = {**outbound_params, "departure_id": destination, "arrival_id": origin, "outbound_date": end_date}
-            log.debug("search_flights: fetching return %s -> %s on %s", destination, origin, end_date)
+            return_params = {
+                **outbound_params,
+                "departure_id": destination,
+                "arrival_id": origin,
+                "outbound_date": end_date,
+            }
+            log.debug("search_flights: return %s -> %s on %s", destination, origin, end_date)
             raw_return = _fetch_flights(return_params)
             flights.extend([_normalize_flight(f, "return", currency) for f in raw_return])
 
