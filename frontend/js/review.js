@@ -49,41 +49,29 @@ function hideUpdatingBanner() {
   document.getElementById('updatingBanner').style.display = 'none';
 }
 
-// Polls status until it has left "awaiting_review" and come back (edit path)
-// or until it reaches "finalized" (approve path). Guards against reading the
-// stale pre-edit status on the very first poll.
 function pollUntilSettled({ targetStatus, onSettled, onTimeout, onError }) {
   let attempts = 0;
-  let hasLeftAwaitingReview = false;
+  let retried = false;
 
   async function tick() {
     attempts++;
-    if (attempts > MAX_POLL_ATTEMPTS) {
-      onTimeout();
-      return;
-    }
+    if (attempts > MAX_POLL_ATTEMPTS) { onTimeout(); return; }
 
     try {
       const data = await apiRequest(`/trips/${tripId}/status`);
       const status = data && data.status;
 
-      if (targetStatus === 'awaiting_review') {
-        if (status && status !== 'awaiting_review') hasLeftAwaitingReview = true;
-        if (hasLeftAwaitingReview && status === 'awaiting_review') {
-          onSettled();
-          return;
-        }
-      } else if (status === targetStatus) {
-        onSettled();
-        return;
-      }
+      if (status === targetStatus) { onSettled(); return; }
 
-      setTimeout(tick, POLL_INTERVAL_MS);
-    } catch (err) {
-      // A 404 right after resume can happen transiently — keep retrying
-      // up to the attempt ceiling rather than failing on the first blip.
-      setTimeout(tick, POLL_INTERVAL_MS);
-    }
+      if (status === 'failed') {
+        if (retried) { onError(); return; }
+        retried = true;                       // one automatic retry from the last checkpoint
+        const res = await apiRequest(`/trips/${tripId}/resume`, { method: 'POST' });
+        if (!res || !res.resumed) { onError(); return; }
+      }
+    } catch (_) { /* transient, keep polling */ }
+
+    setTimeout(tick, POLL_INTERVAL_MS);
   }
 
   tick();
@@ -118,7 +106,12 @@ async function sendEditMessage(text) {
         hideUpdatingBanner();
         appendMessage("This is taking longer than expected. Try refreshing the page in a moment.", 'system');
         setInteractionsEnabled(true);
-      }
+      },
+      onError: () => {
+        hideUpdatingBanner();
+        appendMessage("That update failed. Reload the page to see your last saved itinerary.", 'system');
+        setInteractionsEnabled(true);
+      },
     });
   } catch (err) {
     hideUpdatingBanner();
@@ -158,7 +151,12 @@ async function confirmApprove() {
         hideUpdatingBanner();
         appendMessage("Finalizing is taking longer than expected. Try refreshing in a moment.", 'system');
         setInteractionsEnabled(true);
-      }
+      },
+      onError: () => {
+        hideUpdatingBanner();
+        appendMessage("That update failed. Reload the page to see your last saved itinerary.", 'system');
+        setInteractionsEnabled(true);
+      },
     });
   } catch (err) {
     hideUpdatingBanner();

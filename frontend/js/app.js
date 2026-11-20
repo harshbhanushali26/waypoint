@@ -16,9 +16,19 @@ async function apiRequest(path, options = {}) {
     ...options
   });
 
-  if (!res.ok) {
+    if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Request failed (${res.status})`);
+    let msg = text;
+    try {
+      const body = JSON.parse(text);
+      const d = body && body.detail;
+      if (typeof d === 'string') {
+        msg = d;
+      } else if (Array.isArray(d)) {
+        msg = d.map(e => String((e && e.msg) || '').replace(/^Value error, /, '')).filter(Boolean).join(' ');
+      }
+    } catch (_) { /* not JSON, keep the raw text */ }
+    throw new Error(msg || `Request failed (${res.status})`);
   }
 
   // Some endpoints (e.g. status polling) may return 204 with no body.

@@ -13,7 +13,8 @@ function activeStepIndexForStatus(status) {
   switch (status) {
     case 'planning': return 1;
     case 'searching_and_analyzing_budget': return 2;
-    case 'building_itinerary': return 3;
+    case 'building_itinerary':
+    case 'revising': return 3;
     case 'awaiting_review':
     case 'finalized': return 4;
     default: return 0;

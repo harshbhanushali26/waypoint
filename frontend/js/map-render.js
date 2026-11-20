@@ -16,7 +16,7 @@ function initItineraryMap(containerId = 'mapContainer') {
   leafletMap = L.map(containerId).setView([20.5937, 78.9629], 5); // India center
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
+    maxZoom: 25,
     attribution: '© OpenStreetMap contributors'
   }).addTo(leafletMap);
 

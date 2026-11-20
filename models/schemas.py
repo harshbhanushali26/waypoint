@@ -100,22 +100,33 @@ class Itinerary(BaseModel):
 
 # ── Critic / Revision ────────────────────────────────────────────────────────
 
+CriticTarget = Literal[
+    "planner",
+    "itinerary_builder",
+    "search_flights",
+    "search_trains",
+    "search_hotels",
+    "search_activities",
+    "get_weather",
+]
+
+
 class CriticAnalysis(BaseModel):
     user_request: str
     interpretation: str
-    target: list[str] = Field(
-        description="Nodes to re-run. Valid: ['planner'], ['itinerary_builder'], ['search_flights'], ['search_trains'], ['search_hotels'], ['search_activities']."
+    target: list[CriticTarget] = Field(
+        description="Nodes to re-run. Use 'planner' only when budget, dates, travelers or transport mode change."
     )
     updated_budget: float | None = Field(
         default=None,
-        description="New total budget in INR if specified by user (e.g., 'budget to 50000' -> 50000.0)."
+        description="New total budget in INR, only if the user states a new total (e.g. 'budget to 50000' -> 50000.0)."
     )
-    updated_transport_pref: str | None = Field(
+    updated_transport_pref: Literal["flights", "trains", "any"] | None = Field(
         default=None,
-        description="New transport preference ('flights', 'trains', 'any') if specified by user."
+        description="New transport preference, only if the user asks to change it."
     )
     updated_num_travelers: int | None = Field(
         default=None,
-        description="New number of travelers if specified by user."
+        description="New number of travelers, only if the user states a new number."
     )
     reasoning: str

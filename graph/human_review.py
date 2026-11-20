@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def human_review_node(state: dict) -> dict:
     """
     Pauses the graph for user review of the current itinerary.
- 
+
     On resume, `response` is whatever was passed as `Command(resume=...)`
     at invocation time - expected shape:
         {"action": "approve"}
@@ -57,7 +57,9 @@ def human_review_node(state: dict) -> dict:
         return {"approved": True}
 
     if action == "edit":
-        message_text = response.get("message", "")
+        message_text = str(response.get("message") or "").strip()
+        if not message_text:
+            raise ValueError("human_review: an edit needs a non-empty message.")
         log.debug("human_review: edit message=%r", message_text)
         return {
             "messages": [HumanMessage(content=message_text)],
@@ -72,4 +74,4 @@ def human_review_node(state: dict) -> dict:
     raise ValueError(
         f"human_review received an unrecognized resume action: {action!r}. "
         f"Expected 'approve' or 'edit'."
-    )
+    )   

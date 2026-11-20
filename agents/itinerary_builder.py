@@ -5,6 +5,9 @@ Composes the day-by-day itinerary. Runs in:
     - BUILD mode: First pass, composes from tool search results.
     - REVISE mode: Re-entered via Critic; receives the previous itinerary plus
         fresh tool candidates to perform targeted swaps.
+
+Costs, hotel/transport facts and check-in/out events are finalized in
+graph/validator.py, not here.
 """
 
 import asyncio
@@ -22,7 +25,6 @@ from graph.transport_utils import top_n_per_direction
 
 logger = logging.getLogger(__name__)
 
-# Field allowlists (pruned to optimize prompt token usage)
 _FLIGHT_FIELDS = [
     "flight_id", "direction", "airline", "flight_number",
     "departure_airport", "departure_airport_name",
@@ -47,9 +49,9 @@ _ACTIVITY_FIELDS = [
     "est_duration_hours", "est_price_inr",
 ]
 
-_TRANSPORT_TOP_N_PER_DIRECTION = 1    # Cheapest outbound + cheapest return
-_MAX_HOTELS_FOR_BUILDER = 2           # Top 2 best-value hotels
-_MAX_ACTIVITIES_FOR_BUILDER = 8       # Max 8 curated activities to bound prompt tokens
+_TRANSPORT_TOP_N_PER_DIRECTION = 1
+_MAX_HOTELS_FOR_BUILDER = 2
+_MAX_ACTIVITIES_FOR_BUILDER = 8
 _ACTIVITIES_PER_DAY_BY_PACE = {"relaxed": 2, "moderate": 3, "packed": 4}
 
 
@@ -112,61 +114,14 @@ def _filter_weather_to_trip_dates(weather: list[dict], start_date: str, end_date
         return weather[:7]
 
 
-# ── Cost Computation ─────────────────────────────────────────────────────────
-def _scheduled_activities_cost(
-    itinerary: dict, activities: list[dict], num_travelers: int, log
-) -> tuple[float, list[str]]:
-    price_by_name = {
-        a["name"]: float(a["est_price_inr"])
-        for a in activities
-        if a.get("name") and a.get("est_price_inr") is not None
-    }
-
-    total = 0.0
-    scheduled_names = []
-
-    for day in itinerary.get("days", []):
-        for ev in day.get("events", []):
-            if ev.get("type") == "activity":
-                title = ev.get("title", "")
-                if title in price_by_name:
-                    total += price_by_name[title] * num_travelers
-                    scheduled_names.append(title)
-
-    return total, scheduled_names
-
-
-def _compute_total_cost(itinerary: dict, activities: list[dict], num_travelers: int, log) -> float:
-    total = 0.0
-
-    # Transport legs
-    for t in itinerary.get("chosen_transport", []):
-        if t.get("price"):
-            total += float(t["price"])
-
-    # Hotel
-    hotel = itinerary.get("chosen_hotel")
-    if hotel and hotel.get("total_price"):
-        total += float(hotel["total_price"])
-
-    # Car
-    car = itinerary.get("chosen_car")
-    if car and car.get("total_price"):
-        total += float(car["total_price"])
-
-    # Activities
-    act_total, _ = _scheduled_activities_cost(itinerary, activities, num_travelers, log)
-    total += act_total
-
-    return round(total, 2)
+def _priced_hotels(hotels: list[dict]) -> list[dict]:
+    return [h for h in hotels if (h.get("total_price") or 0) > 0]
 
 
 # ── Node Entry Point ─────────────────────────────────────────────────────────
 
 async def itinerary_builder_node(state: TripState) -> dict:
-    """
-    Composes or revises the itinerary using openai/gpt-oss-120b.
-    """
+    """Composes or revises the itinerary using openai/gpt-oss-120b."""
     normalized_input = state["normalized_input"]
     log = get_trip_logger(logger, state["trip_id"])
     num_travelers = normalized_input.get("num_travelers", 1)
@@ -176,16 +131,12 @@ async def itinerary_builder_node(state: TripState) -> dict:
         normalized_input["end_date"],
     )
 
-    # Dynamic Groq TPM safety pacing (Non-blocking async)
+    # Safety buffer between Budget's LLM call and this one (non-blocking).
     last_llm_time = state.get("_budget_llm_done_at")
     if last_llm_time:
-        elapsed = time.time() - last_llm_time
-        # Since Step 1 trimmed candidate tokens by 65% (~1,800 tokens total),
-        # budget + builder consumes < 2,600 TPM (well within 8,000 TPM limit).
-        # We only need a safety buffer if calls happen in immediate succession.
-        remaining = 3.0 - elapsed
+        remaining = 3.0 - (time.time() - last_llm_time)
         if remaining > 0:
-            log.info("Pacing Groq TPM window: non-blocking wait %.1fs before building itinerary...", remaining)
+            log.info("Pacing Groq TPM window: waiting %.1fs before building itinerary...", remaining)
             await asyncio.sleep(remaining)
 
     structured_llm = get_structured_llm(
@@ -197,18 +148,26 @@ async def itinerary_builder_node(state: TripState) -> dict:
     )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # REVISE MODE: User requested targeted edits in Human Review
+    # REVISE MODE
     # ─────────────────────────────────────────────────────────────────────────
     if state.get("critic_analysis"):
         critic_analysis = state["critic_analysis"]
-        log.info("Itinerary Builder: executing REVISE mode for: %r", critic_analysis.get("interpretation"))
+        log.info("Itinerary Builder: REVISE mode for: %r", critic_analysis.get("interpretation"))
 
-        candidate_hotels = _trim(state.get("hotels", [])[:_MAX_HOTELS_FOR_BUILDER], _HOTEL_FIELDS)
+        prev_itinerary = state.get("itinerary", {})
+
+        # "Different hotel" must not hand back the hotel the user just rejected.
+        hotel_pool = _priced_hotels(state.get("hotels", []))
+        if "search_hotels" in (critic_analysis.get("target") or []):
+            current_id = (prev_itinerary.get("chosen_hotel") or {}).get("hotel_id")
+            others = [h for h in hotel_pool if h.get("hotel_id") != current_id]
+            hotel_pool = others or hotel_pool
+
+        candidate_hotels = _trim(hotel_pool[:_MAX_HOTELS_FOR_BUILDER + 1], _HOTEL_FIELDS)
         candidate_flights = _trim(top_n_per_direction(state.get("flights", []), "price", 1), _FLIGHT_FIELDS)
         candidate_trains = _trim(top_n_per_direction(state.get("trains", []), "price", 1), _TRAIN_FIELDS)
         candidate_activities = _trim(state.get("activities", [])[:_MAX_ACTIVITIES_FOR_BUILDER], _ACTIVITY_FIELDS)
 
-        prev_itinerary = state.get("itinerary", {})
         revise_slice = {
             "previous_itinerary": prev_itinerary,
             "edit_request": critic_analysis["interpretation"],
@@ -220,7 +179,7 @@ async def itinerary_builder_node(state: TripState) -> dict:
         }
 
         revise_user_message = build_itinerary_reviser_user_message(revise_slice)
-        response = structured_llm.invoke([
+        response = await structured_llm.ainvoke([
             {"role": "system", "content": ITINERARY_REVISER_SYSTEM_PROMPT},
             {"role": "user", "content": revise_user_message},
         ])
@@ -236,15 +195,14 @@ async def itinerary_builder_node(state: TripState) -> dict:
 
         itinerary = response["parsed"].model_dump()
         itinerary["data_gaps"] = prev_itinerary.get("data_gaps", [])
-        itinerary["total_cost"] = _compute_total_cost(itinerary, state.get("activities", []), num_travelers, log)
 
-        log.info("Itinerary revised successfully. New total_cost: %.2f", itinerary["total_cost"])
-        return {"itinerary": itinerary, "status": "awaiting_review"}
+        log.info("Itinerary revised; the Validator will finalize costs.")
+        return {"itinerary": itinerary, "status": "building_itinerary"}
 
     # ─────────────────────────────────────────────────────────────────────────
-    # BUILD MODE: Initial full itinerary generation
+    # BUILD MODE
     # ─────────────────────────────────────────────────────────────────────────
-    log.info("Itinerary Builder: executing BUILD mode")
+    log.info("Itinerary Builder: BUILD mode")
 
     search_plan = state.get("search_plan", {})
     transport_modes = set(search_plan.get("transport_modes", []))
@@ -255,12 +213,9 @@ async def itinerary_builder_node(state: TripState) -> dict:
     activities = state.get("activities", [])
     weather = state.get("weather", [])
 
-    flights = top_n_per_direction(flights, "price", _TRANSPORT_TOP_N_PER_DIRECTION)
-    trains = top_n_per_direction(trains, "price", _TRANSPORT_TOP_N_PER_DIRECTION)
-
-    flights = _trim(flights, _FLIGHT_FIELDS)
-    trains = _trim(trains, _TRAIN_FIELDS)
-    hotels = _trim([h for h in hotels if h.get("total_price", 0) > 0][:_MAX_HOTELS_FOR_BUILDER], _HOTEL_FIELDS)
+    flights = _trim(top_n_per_direction(flights, "price", _TRANSPORT_TOP_N_PER_DIRECTION), _FLIGHT_FIELDS)
+    trains = _trim(top_n_per_direction(trains, "price", _TRANSPORT_TOP_N_PER_DIRECTION), _TRAIN_FIELDS)
+    hotels = _trim(_priced_hotels(hotels)[:_MAX_HOTELS_FOR_BUILDER], _HOTEL_FIELDS)
 
     per_day = _ACTIVITIES_PER_DAY_BY_PACE.get(normalized_input.get("pace", "moderate"), 2)
     target_act_count = min(max(len(trip_dates) * per_day, 6), _MAX_ACTIVITIES_FOR_BUILDER)
@@ -291,7 +246,7 @@ async def itinerary_builder_node(state: TripState) -> dict:
     }
 
     build_user_message = build_itinerary_builder_user_message(build_slice)
-    response = structured_llm.invoke([
+    response = await structured_llm.ainvoke([
         {"role": "system", "content": ITINERARY_BUILDER_SYSTEM_PROMPT},
         {"role": "user", "content": build_user_message},
     ])
@@ -306,8 +261,7 @@ async def itinerary_builder_node(state: TripState) -> dict:
         raise RuntimeError("Itinerary build parsing failed - see logged raw content above")
 
     itinerary = response["parsed"].model_dump()
-    itinerary["total_cost"] = _compute_total_cost(itinerary, activities, num_travelers, log)
     itinerary["data_gaps"] = _collect_data_gaps(state, transport_modes)
 
-    log.info("Itinerary built successfully. Total cost: %.2f", itinerary["total_cost"])
-    return {"itinerary": itinerary, "status": "awaiting_review"}
+    log.info("Itinerary built; the Validator will finalize costs.")
+    return {"itinerary": itinerary, "status": "building_itinerary"}

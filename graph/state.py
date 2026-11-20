@@ -34,6 +34,14 @@ class TripState(TypedDict):
     itinerary: dict
     critic_analysis: Optional[dict]
 
+    # Tool diagnostics ("fail loud" notes) and the pacing marker
+    flights_note: Optional[str]
+    trains_note: Optional[str]
+    hotels_note: Optional[str]
+    activities_note: Optional[str]
+    weather_note: Optional[str]
+    _budget_llm_done_at: Optional[float]
+
     # Review & Lifecycle
     approved: bool
     messages: Annotated[list, add_messages]

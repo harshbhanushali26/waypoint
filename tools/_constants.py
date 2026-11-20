@@ -32,7 +32,7 @@ INDIAN_STATIONS: dict[str, str] = {
     "patna": "PNBE", "pune": "PUNE", "raipur": "R", "ranchi": "RNC",
     "thiruvananthapuram": "TVC", "trivandrum": "TVC", "vadodara": "BRC",
     "varanasi": "BSB", "visakhapatnam": "VSKP", "surat": "ST", "vapi": "VAPI",
-    "bhuj": "BHJ", "udaipur": "UDZ", "amritsar": "ASR", "jodhpur": "JU",
+    "bhuj": "BHUJ", "udaipur": "UDZ", "amritsar": "ASR", "jodhpur": "JU",
     "agra": "AGC", "haridwar": "HW", "dehradun": "DDN", "gwalior": "GWL",
     "mathura": "MTJ", "ujjain": "UJN", "ajmer": "AII", "shimla": "SML",
 }
