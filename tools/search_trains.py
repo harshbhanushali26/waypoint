@@ -5,6 +5,7 @@ Free-API train search using RailRadar API.
 Station resolution uses centralized _constants.resolve_station with autocomplete fallback.
 """
 
+import asyncio
 import logging
 import time
 import httpx
@@ -302,7 +303,7 @@ def _search_direction(
     return normalized, rate_limited
 
 
-def search_trains(state: dict) -> dict:
+def _search_trains_sync(state: dict) -> dict:
     """Tool node entry point for StateGraph."""
     log = get_trip_logger(logger, state.get("trip_id", "-"))
 
@@ -363,3 +364,12 @@ def search_trains(state: dict) -> dict:
     except Exception as e:
         log.warning("search_trains: search failed — %s", e, exc_info=True)
         return {"trains": [], "trains_note": f"Train search failed: {e}"}
+
+
+async def search_trains(state: dict) -> dict:
+    """
+    Asynchronous tool node entry point for StateGraph.
+    Runs throttled synchronous HTTP requests in a worker thread so the
+    FastAPI event loop stays 100% responsive.
+    """
+    return await asyncio.to_thread(_search_trains_sync, state)

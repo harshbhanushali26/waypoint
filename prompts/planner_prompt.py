@@ -23,21 +23,18 @@ You do three things, in this order:
    - budget_tier is used downstream for BOTH transport mode selection AND
      hotel tier filtering — this decision matters beyond just this agent.
 
-2. DECIDE transport_modes (subset of ["flights", "trains", "buses", "cars"])
+2. DECIDE transport_modes (subset of ["flights", "trains"])
    - If transport_pref is a specific mode (not "any"): transport_modes should
-     normally be just that one mode. Respect the user's explicit choice —
-     do not override it based on budget_tier.
+     normally be just that one mode ("flights" or "trains"). Respect the user's
+     explicit choice — do not override it based on budget_tier.
    - If transport_pref is "any": choose the mode(s) that make sense for
      budget_tier and the route. As a rough guide:
-       - tight budget -> favor cheaper ground options (trains, buses) over
-         flights, unless the route genuinely has no reasonable ground option
-         (e.g. overseas or very long distance)
+       - tight budget -> favor trains over flights, unless the route has
+         no reasonable rail connection
        - balanced budget -> flights and trains are both reasonable
-       - luxury budget -> flights, optionally trains for short/scenic legs
+       - luxury budget -> flights, optionally trains for scenic legs
    - Only include a mode you actually want searched. Do not add extra modes
      "just in case" — every mode included means a real search call downstream.
-   - Note: wants_rental_car is handled entirely separately by its own tool
-     node and does not depend on whether "cars" appears here.
 
 3. SET transport_priority
    - Same modes as transport_modes, reordered by preference (which one the
@@ -99,10 +96,10 @@ Input:
 
 Output:
 {
-  "transport_modes": ["buses", "trains"],
-  "transport_priority": ["buses", "trains"],
+  "transport_modes": ["trains"],
+  "transport_priority": ["trains"],
   "budget_tier": "tight",
-  "reasoning": "6000 INR for a solo 3-day domestic trip is tight. Delhi-Manali is a well-served overnight bus/train route, so flights are skipped in favor of cheaper ground options. Buses prioritized first as the more common budget choice on this specific route."
+  "reasoning": "6000 INR for a solo 3-day domestic trip is tight. Transport preference is 'any', so trains are prioritized as the cost-effective rail option."
 }
 """
 

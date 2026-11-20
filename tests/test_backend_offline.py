@@ -40,7 +40,6 @@ class TestWaypointSchemasAndHelpers(unittest.TestCase):
     def test_normalized_input_defaults_and_7day_cap(self):
         """Ensure input normalization deterministically enforces the <= 7 days constraint."""
         valid_trip = NormalizedInput(
-            needs_clarification=False,
             origin_city="Mumbai",
             destination="Goa, India",
             start_date="2026-10-10",
@@ -128,7 +127,6 @@ class TestMockedAgentExecution(unittest.IsolatedAsyncioTestCase):
     async def test_concierge_node_mock(self):
         """Simulate Concierge parsing user prompt into NormalizedInput using mocked LLM."""
         fake_normalized = NormalizedInput(
-            needs_clarification=False,
             origin_city="Delhi",
             destination="Jaipur, India",
             start_date="2026-11-01",

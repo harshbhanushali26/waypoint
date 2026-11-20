@@ -16,6 +16,8 @@ dependencies = [
     "psycopg[binary,pool]>=3.3.4",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.0.52",
@@ -23,3 +25,8 @@ dependencies = [
     "tenacity>=9.1.4",
     "uvicorn[standard]>=0.52.3",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

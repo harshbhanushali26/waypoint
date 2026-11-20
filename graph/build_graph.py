@@ -24,6 +24,7 @@ from tools.get_weather import get_weather
 
 from graph.human_review import human_review_node
 from graph.finalize import finalize_node
+from graph.validator import validator_node
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def build_graph(checkpointer: AsyncPostgresSaver):
 
     graph.add_node("budget", budget_node)
     graph.add_node("itinerary_builder", itinerary_builder_node)
+    graph.add_node("validator", validator_node)
     graph.add_node("human_review", human_review_node)
     graph.add_node("critic", critic_node)
     graph.add_node("finalize", finalize_node)
@@ -67,7 +69,8 @@ def build_graph(checkpointer: AsyncPostgresSaver):
         graph.add_edge(name, "budget")
 
     graph.add_edge("budget", "itinerary_builder")
-    graph.add_edge("itinerary_builder", "human_review")
+    graph.add_edge("itinerary_builder", "validator")  
+    graph.add_edge("validator", "human_review")
 
     graph.add_conditional_edges(
         "human_review",
@@ -80,8 +83,6 @@ def build_graph(checkpointer: AsyncPostgresSaver):
     compiled = graph.compile(checkpointer=checkpointer)
     logger.info("Waypoint StateGraph compiled successfully with %d nodes", len(graph.nodes))
     return compiled
-
-
 
 
 async def get_compiled_graph(conn_string: str):

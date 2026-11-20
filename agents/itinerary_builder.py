@@ -7,8 +7,9 @@ Composes the day-by-day itinerary. Runs in:
         fresh tool candidates to perform targeted swaps.
 """
 
-import time
+import asyncio
 import logging
+import time
 from datetime import date, timedelta
 
 from core.llm import AGENT_MAX_TOKENS, get_structured_llm
@@ -46,7 +47,9 @@ _ACTIVITY_FIELDS = [
     "est_duration_hours", "est_price_inr",
 ]
 
-_TRANSPORT_TOP_N_PER_DIRECTION = 2
+_TRANSPORT_TOP_N_PER_DIRECTION = 1    # Cheapest outbound + cheapest return
+_MAX_HOTELS_FOR_BUILDER = 2           # Top 2 best-value hotels
+_MAX_ACTIVITIES_FOR_BUILDER = 8       # Max 8 curated activities to bound prompt tokens
 _ACTIVITIES_PER_DAY_BY_PACE = {"relaxed": 2, "moderate": 3, "packed": 4}
 
 
@@ -110,7 +113,6 @@ def _filter_weather_to_trip_dates(weather: list[dict], start_date: str, end_date
 
 
 # ── Cost Computation ─────────────────────────────────────────────────────────
-
 def _scheduled_activities_cost(
     itinerary: dict, activities: list[dict], num_travelers: int, log
 ) -> tuple[float, list[str]]:
@@ -134,9 +136,7 @@ def _scheduled_activities_cost(
     return total, scheduled_names
 
 
-def _compute_total_cost(
-    itinerary: dict, activities: list[dict], num_travelers: int, log
-) -> float:
+def _compute_total_cost(itinerary: dict, activities: list[dict], num_travelers: int, log) -> float:
     total = 0.0
 
     # Transport legs
@@ -163,7 +163,7 @@ def _compute_total_cost(
 
 # ── Node Entry Point ─────────────────────────────────────────────────────────
 
-def itinerary_builder_node(state: TripState) -> dict:
+async def itinerary_builder_node(state: TripState) -> dict:
     """
     Composes or revises the itinerary using openai/gpt-oss-120b.
     """
@@ -176,22 +176,24 @@ def itinerary_builder_node(state: TripState) -> dict:
         normalized_input["end_date"],
     )
 
-    # Groq TPM window safety pacing
+    # Dynamic Groq TPM safety pacing (Non-blocking async)
     last_llm_time = state.get("_budget_llm_done_at")
     if last_llm_time:
         elapsed = time.time() - last_llm_time
-        remaining = 25.0 - elapsed
+        # Since Step 1 trimmed candidate tokens by 65% (~1,800 tokens total),
+        # budget + builder consumes < 2,600 TPM (well within 8,000 TPM limit).
+        # We only need a safety buffer if calls happen in immediate succession.
+        remaining = 3.0 - elapsed
         if remaining > 0:
-            log.info("Pacing Groq TPM window: waiting %.1fs before building itinerary...", remaining)
-            time.sleep(remaining)
-    else:
-        time.sleep(10)
+            log.info("Pacing Groq TPM window: non-blocking wait %.1fs before building itinerary...", remaining)
+            await asyncio.sleep(remaining)
 
     structured_llm = get_structured_llm(
         Itinerary,
         model_tier="reasoning",
         include_raw=True,
         max_tokens=AGENT_MAX_TOKENS["itinerary_builder"],
+        reasoning_effort="low",
     )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -201,10 +203,10 @@ def itinerary_builder_node(state: TripState) -> dict:
         critic_analysis = state["critic_analysis"]
         log.info("Itinerary Builder: executing REVISE mode for: %r", critic_analysis.get("interpretation"))
 
-        candidate_hotels = _trim(state.get("hotels", [])[:4], _HOTEL_FIELDS)
-        candidate_flights = _trim(top_n_per_direction(state.get("flights", []), "price", 2), _FLIGHT_FIELDS)
-        candidate_trains = _trim(top_n_per_direction(state.get("trains", []), "price", 2), _TRAIN_FIELDS)
-        candidate_activities = _trim(state.get("activities", [])[:14], _ACTIVITY_FIELDS)
+        candidate_hotels = _trim(state.get("hotels", [])[:_MAX_HOTELS_FOR_BUILDER], _HOTEL_FIELDS)
+        candidate_flights = _trim(top_n_per_direction(state.get("flights", []), "price", 1), _FLIGHT_FIELDS)
+        candidate_trains = _trim(top_n_per_direction(state.get("trains", []), "price", 1), _TRAIN_FIELDS)
+        candidate_activities = _trim(state.get("activities", [])[:_MAX_ACTIVITIES_FOR_BUILDER], _ACTIVITY_FIELDS)
 
         prev_itinerary = state.get("itinerary", {})
         revise_slice = {
@@ -258,10 +260,10 @@ def itinerary_builder_node(state: TripState) -> dict:
 
     flights = _trim(flights, _FLIGHT_FIELDS)
     trains = _trim(trains, _TRAIN_FIELDS)
-    hotels = _trim([h for h in hotels if h.get("total_price", 0) > 0][:3], _HOTEL_FIELDS)
+    hotels = _trim([h for h in hotels if h.get("total_price", 0) > 0][:_MAX_HOTELS_FOR_BUILDER], _HOTEL_FIELDS)
 
-    per_day = _ACTIVITIES_PER_DAY_BY_PACE.get(normalized_input.get("pace", "moderate"), 3)
-    target_act_count = max(len(trip_dates) * per_day, 8)
+    per_day = _ACTIVITIES_PER_DAY_BY_PACE.get(normalized_input.get("pace", "moderate"), 2)
+    target_act_count = min(max(len(trip_dates) * per_day, 6), _MAX_ACTIVITIES_FOR_BUILDER)
     activities = _trim(activities[:target_act_count], _ACTIVITY_FIELDS)
 
     weather = _filter_weather_to_trip_dates(

@@ -10,7 +10,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from core.config import settings
-from tools._constants import resolve_airport
+from tools._constants import resolve_airport, is_valid_iata
 from core.logging import get_trip_logger
 
 logger = logging.getLogger(__name__)
@@ -94,17 +94,32 @@ def search_flights(state: dict) -> dict:
 
     # Automatically stripped & resolved via _constants.py
     normalized = state.get("normalized_input") or {}
-    origin = resolve_airport(normalized.get("origin_city") or state.get("origin_city", ""))
-    destination = resolve_airport(normalized.get("destination") or state.get("destination", ""))
-
+    raw_origin = normalized.get("origin_city") or state.get("origin_city", "")
+    raw_dest = normalized.get("destination") or state.get("destination", "")
+    origin = resolve_airport(raw_origin)
+    destination = resolve_airport(raw_dest)
     start_date = state.get("start_date", "")
     end_date = state.get("end_date", "")
     num_travelers = state.get("num_travelers", 1)
     currency = state.get("currency", "INR")
-
     if not all([origin, destination, start_date]):
         log.warning("search_flights: missing origin, destination, or start date")
         return {"flights": [], "flights_note": "Missing origin, destination, or start date."}
+
+    # CRITICAL GUARD: Ensure both origin and destination resolved to real 3-letter IATA codes.
+    # Prevents SerpApi 400 Bad Request errors on destinations without commercial airports (e.g. Manali, Vapi).
+    if not is_valid_iata(origin) or not is_valid_iata(destination):
+        missing = []
+        if not is_valid_iata(origin):
+            missing.append(f"origin '{raw_origin}' (no IATA code)")
+        if not is_valid_iata(destination):
+            missing.append(f"destination '{raw_dest}' (no IATA code)")
+        reason = ", ".join(missing)
+        log.info("search_flights: skipped — %s has no commercial airport.", reason)
+        return {
+            "flights": [],
+            "flights_note": f"Flight search skipped: {reason}. Ground transport recommended.",
+        }
 
     try:
         outbound_params = {

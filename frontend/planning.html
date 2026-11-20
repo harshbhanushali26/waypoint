@@ -36,7 +36,17 @@
         <p>Our agents are researching routes, checking budget, and building your day-by-day plan.</p>
       </div>
 
-      <div class="submit-error" id="pollError"></div>
+            <!-- Mid-Crash Recovery Banner -->
+      <div id="recoveryBanner" style="display: none; margin-bottom: 24px; padding: 18px 20px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; text-align: center;">
+        <p id="recoveryMessage" style="color: #F87171; font-size: 0.95rem; margin-bottom: 12px; font-weight: 500;">
+          Planning paused due to a network interruption.
+        </p>
+        <button id="resumeBtn" type="button" class="btn-primary" style="padding: 10px 22px; font-size: 0.9rem; background: #F59E0B; color: #111116; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+          🔄 Resume from Checkpoint
+        </button>
+      </div>
+
+      <div class="submit-error" id="pollError" style="display: none;"></div>
 
       <div class="card synthesis-card">
         <div class="synthesis-head">

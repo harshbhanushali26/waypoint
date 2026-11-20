@@ -5,12 +5,6 @@ document.querySelectorAll('#interestChips .chip').forEach(chip => {
   chip.addEventListener('click', () => chip.classList.toggle('selected'));
 });
 
-document.querySelectorAll('#carRentalGroup .radio-opt').forEach(opt => {
-  opt.addEventListener('click', () => {
-    document.querySelectorAll('#carRentalGroup .radio-opt').forEach(o => o.classList.remove('selected'));
-    opt.classList.add('selected');
-  });
-});
 
 function setInvalid(fieldId, invalid) {
   document.getElementById(fieldId).classList.toggle('invalid', invalid);
@@ -76,7 +70,6 @@ function validateAll() {
 function collectState() {
   const interests = Array.from(document.querySelectorAll('#interestChips .chip.selected'))
     .map(c => c.dataset.value);
-  const carRental = document.querySelector('#carRentalGroup .radio-opt.selected').dataset.value === 'true';
 
   return {
     destination: document.getElementById('destination').value.trim(),
@@ -85,10 +78,10 @@ function collectState() {
     end_date: document.getElementById('endDate').value,
     num_travelers: parseInt(document.getElementById('travelers').value, 10),
     budget: parseFloat(document.getElementById('budget').value),
-    currency: 'INR', // Waypoint is India-only, domestic trips for v1 — no picker needed
+    currency: 'INR',
     interests: interests,
     transport_pref: document.getElementById('transportPref').value,
-    wants_rental_car: carRental,
+    wants_rental_car: false,
     pace: document.getElementById('pace').value
   };
 }
@@ -103,7 +96,6 @@ function goToReview() {
   document.getElementById('rv-travelers').textContent = s.num_travelers;
   document.getElementById('rv-interests').textContent = s.interests.length ? s.interests.join(', ') : 'None selected';
   document.getElementById('rv-transport').textContent = s.transport_pref;
-  document.getElementById('rv-rental').textContent = s.wants_rental_car ? 'Yes' : 'No';
   document.getElementById('rv-pace').textContent = s.pace;
   document.getElementById('rv-budget').textContent = `₹${s.budget.toLocaleString('en-IN')}`;
 

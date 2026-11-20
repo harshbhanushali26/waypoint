@@ -133,3 +133,42 @@ async def submit_review(trip_id: str, payload: ReviewRequest, background_tasks: 
 
     background_tasks.add_task(_resume)
     return {"trip_id": trip_id, "accepted": True}
+
+
+@router.post("/{trip_id}/resume")
+async def resume_trip(trip_id: str, background_tasks: BackgroundTasks, request: Request):
+    """
+    Resumes a failed, interrupted, or mid-crash trip from its last saved LangGraph checkpoint.
+    Reuses existing tool/state candidates without re-running earlier nodes or burning API calls.
+    """
+    graph = request.app.state.graph
+    cfg = _config(trip_id)
+    snapshot = await graph.aget_state(cfg)
+
+    if not snapshot.values:
+        raise HTTPException(status_code=404, detail="No checkpoint found for this trip.")
+
+    # Check if there is a pending node to execute
+    next_nodes = snapshot.next
+    if not next_nodes:
+        # If no pending nodes, check if trip is already approved or completed
+        status = snapshot.values.get("status")
+        return {
+            "trip_id": trip_id,
+            "resumed": False,
+            "message": f"Trip is already at a terminal state: {status}",
+            "current_status": status
+        }
+
+    async def _resume_from_checkpoint():
+        # Invoking graph with None and the same thread_id tells LangGraph 
+        # to continue directly from the interrupted/failed node snapshot!
+        await graph.ainvoke(None, config=cfg)
+
+    background_tasks.add_task(_resume_from_checkpoint)
+    return {
+        "trip_id": trip_id,
+        "resumed": True,
+        "resuming_from_node": list(next_nodes),
+        "message": f"Successfully resuming trip from node: {list(next_nodes)}"
+    }

@@ -80,6 +80,11 @@ function bindActionButtons(itinerary) {
   if (calBtn && typeof exportToICal === 'function') {
     calBtn.addEventListener('click', () => exportToICal(itinerary));
   }
+
+  const prBtn = document.getElementById('printBtn');
+  if (prBtn) {
+    prBtn.addEventListener('click', () => window.print());
+  }
 }
 
 // ── Page Initialization ─────────────────────────────────────────────────────

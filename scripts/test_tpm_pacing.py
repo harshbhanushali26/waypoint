@@ -38,7 +38,6 @@ from models.schemas import NormalizedInput, SearchPlan, BudgetAnalysis, Itinerar
 from agents.itinerary_builder import (
     _compute_trip_dates,
     _filter_weather_to_trip_dates,
-    _filter_priced_trains,
     _trim,
     _TRAIN_FIELDS,
     _HOTEL_FIELDS,
@@ -203,7 +202,7 @@ def scenario_1_normal_run():
 
     # --- Itinerary Builder (build mode) ---
     trip_dates = _compute_trip_dates(normalized_input["start_date"], normalized_input["end_date"])
-    trains = _filter_priced_trains(_trim(DUMMY_TRAINS, _TRAIN_FIELDS))
+    trains = [t for t in _trim(DUMMY_TRAINS, _TRAIN_FIELDS) if t.get("price", 0) > 0]
     hotels = _trim(DUMMY_HOTELS, _HOTEL_FIELDS)
     activities = _trim(DUMMY_ACTIVITIES, _ACTIVITY_FIELDS)
     weather = _filter_weather_to_trip_dates(DUMMY_WEATHER_RAW, normalized_input["start_date"], normalized_input["end_date"])

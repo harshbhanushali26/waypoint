@@ -93,7 +93,9 @@ class Itinerary(BaseModel):
     days: list[dict] = Field(
         description="List of days: [{'date': 'YYYY-MM-DD', 'events': [{'time': '09:00', 'type': 'activity'|'transport'|'hotel_checkin'|'hotel_checkout', 'title': '...', 'details': '...'}]}]"
     )
-    total_cost: float
+    total_cost: Optional[float] = Field(
+        default=0.0,
+        description="Estimated total cost. Safe fallback to 0.0 — Python recomputes exact math downstream.")
 
 
 # ── Critic / Revision ────────────────────────────────────────────────────────
@@ -103,5 +105,17 @@ class CriticAnalysis(BaseModel):
     interpretation: str
     target: list[str] = Field(
         description="Nodes to re-run. Valid: ['planner'], ['itinerary_builder'], ['search_flights'], ['search_trains'], ['search_hotels'], ['search_activities']."
+    )
+    updated_budget: float | None = Field(
+        default=None,
+        description="New total budget in INR if specified by user (e.g., 'budget to 50000' -> 50000.0)."
+    )
+    updated_transport_pref: str | None = Field(
+        default=None,
+        description="New transport preference ('flights', 'trains', 'any') if specified by user."
+    )
+    updated_num_travelers: int | None = Field(
+        default=None,
+        description="New number of travelers if specified by user."
     )
     reasoning: str
