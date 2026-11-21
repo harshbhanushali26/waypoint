@@ -14,6 +14,7 @@ Call setup_logging() exactly once, in api/main.py, before the FastAPI app
 is constructed.
 """
 
+import os
 import logging
 import logging.handlers
 from pathlib import Path
@@ -52,34 +53,33 @@ class DefaultTripIdFilter(logging.Filter):
         return True  # always let the record through; this filter only enriches it
 
 
-def setup_logging(level: int = logging.DEBUG) -> None:
+def setup_logging(level: int | None = None) -> None:
     """
-    Configure the root logger with a console handler and a rotating file
-    handler. Call once at app startup (api/main.py). Every existing
-    `logging.getLogger(__name__)` in agents/tools/routers inherits this
-    config automatically — no changes needed in those files.
-    """
+    Configure the root logger with a console handler and a rotating file handler.
+    Call once at app startup (api/main.py).
 
-    # Make sure the logs/ folder exists on a fresh clone — the rotating
-    # file handler will error out if the parent directory doesn't exist.
+    Level comes from the LOG_LEVEL env var (default INFO). Use LOG_LEVEL=DEBUG
+    for local debugging only: DEBUG logs full prompts.
+    """
+    root_logger = logging.getLogger()
+    if getattr(root_logger, "_waypoint_configured", False):
+        return   # already configured (reload or repeated call)
+
+    if level is None:
+        level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+
     LOG_DIR.mkdir(exist_ok=True)
 
-    # One shared format for both handlers: timestamp, level, which module
-    # logged it, which trip it belongs to (or "-" if none), and the message.
     formatter = logging.Formatter(
         fmt="%(asctime)s [%(levelname)s] %(name)s [trip:%(trip_id)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-
     trip_id_filter = DefaultTripIdFilter()
 
-    # Console handler — for watching logs live during local dev (uvicorn --reload)
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     console_handler.addFilter(trip_id_filter)
 
-    # Rotating file handler — for persistence, so a trip's full log trail
-    # can be reviewed after the fact instead of only living in scrollback.
     file_handler = logging.handlers.RotatingFileHandler(
         filename=LOG_FILE,
         maxBytes=MAX_BYTES,
@@ -89,12 +89,15 @@ def setup_logging(level: int = logging.DEBUG) -> None:
     file_handler.setFormatter(formatter)
     file_handler.addFilter(trip_id_filter)
 
-    # Configure the ROOT logger, not a named one — this is what makes every
-    # module's `logging.getLogger(__name__)` call inherit these handlers.
-    root_logger = logging.getLogger()
     root_logger.setLevel(level)
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
+    root_logger._waypoint_configured = True
+
+    # Library loggers log full request URLs (httpx logs API keys in query strings)
+    # and full prompts (groq at DEBUG). Keep them quiet whatever the app level is.
+    for noisy in ("httpx", "httpcore", "groq", "openai", "urllib3", "asyncio"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def get_trip_logger(logger: logging.Logger, trip_id: str) -> logging.LoggerAdapter:
